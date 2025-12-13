@@ -32,7 +32,7 @@ async def main():
     async with serve(
             handler,
             os.getenv('SERVER_HOST', 'localhost'),
-            int(os.getenv('SERVER_HOST', 'SERVER_PORT'))
+            int(os.getenv('SERVER_PORT', '8080'))
     ) as server:
         await server.serve_forever()
 
