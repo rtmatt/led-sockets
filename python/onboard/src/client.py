@@ -7,9 +7,13 @@ from thing import Thing
 
 
 async def process(message, thing):
-    value = json.loads(message)["blue"]
-    thing.set_blue(True if value == "on" else False)
-    print(value)
+    try:
+        value = json.loads(message)["blue"]
+        thing.set_blue(True if value == "on" else False)
+        print(value)
+    except:
+        print('invalid request')
+
 
 
 async def main():
