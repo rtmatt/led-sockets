@@ -1,13 +1,23 @@
 import asyncio
+import json
+
 from websockets.asyncio.client import connect
 
-async def process(message):
-    print(message)
+from thing import Thing
+
+
+async def process(message, thing):
+    value = json.loads(message)["blue"]
+    thing.set_blue(True if value == "on" else False)
+    print(value)
+
 
 async def main():
+    thing = Thing()
     async with connect("ws://localhost:8765") as websocket:
+        thing.connected()
         async for message in websocket:
-            await process(message)
+            await process(message, thing)
 
 
 if __name__ == "__main__":
