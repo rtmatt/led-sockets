@@ -1,5 +1,9 @@
+import os
+from dotenv import load_dotenv
 import asyncio
 from websockets.asyncio.server import serve
+
+load_dotenv()
 
 connections = set()
 
@@ -25,7 +29,11 @@ async def handler(websocket):
 
 
 async def main():
-    async with serve(handler, "localhost", 8765) as server:
+    async with serve(
+            handler,
+            os.getenv('SERVER_HOST', 'localhost'),
+            int(os.getenv('SERVER_HOST', 'SERVER_PORT'))
+    ) as server:
         await server.serve_forever()
 
 
