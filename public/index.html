@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+  >
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>LED SOCKETS!</title>
+</head>
+<body>
+<h1>What's a LED SOCKET?</h1>
+<button id="button">Click Me</button>
+<script>
+  let state = false;
+
+  function handleButton(button, websocket) {
+    button.addEventListener('click', () => {
+      const data = JSON.stringify({
+        blue: state ? 'off' : 'on'
+      });
+      websocket.send(data);
+      state = !state;
+    });
+  }
+
+  function handleSocketMessages(websocket) {
+    websocket.addEventListener('message', ({ data }) => {
+      console.log(data);
+    });
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const button = document.getElementById('button');
+    const websocket = new WebSocket('ws://147.182.199.214/ws/');
+
+    handleButton(button, websocket);
+    handleSocketMessages(websocket);
+  });
+</script>
+</body>
+</html>
