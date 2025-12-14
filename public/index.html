@@ -33,7 +33,7 @@
 
   window.addEventListener('DOMContentLoaded', () => {
     const button = document.getElementById('button');
-    const websocket = new WebSocket('ws://147.182.199.214/ws/');
+    const websocket = new WebSocket('wss://led-sockets.mattemrick.com/ws/');
 
     handleButton(button, websocket);
     handleSocketMessages(websocket);
