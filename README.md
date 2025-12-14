@@ -40,6 +40,24 @@ If you type a message and press enter, you should see it output on the original 
 
 Note: if your domain isn't served over https, you'll need to use a ws:// url instead of wss://
 
+## Supervisor
+At this point, the script will stop running once the ssh session closes. By adding supervisor, the script can be run on
+boot and restart if it crashes.
+* check if supervisor is installed `which supervisorctl`
+* install supervisor if it's not installed already `sudo apt install supervisor`
+* create a config file
+  `sudo cp resources/supervisor/led-sockets-server.conf.example /etc/supervisor/conf.d/led-sockets-server.conf`
+    * edit the file `/etc/supervisor/conf.d/led-sockets-server.conf` to set the `directory` and `stdout_logfile` values
+      using the proper absolute paths
+* run supervisor
+    * `sudo supervisorctl`
+    * `reread`
+    * `start processname` where `processname` is the name of the process output from status call
+        * if you ever need to restart or stop the process, use `restart processname` or `stop processname`. You'll need
+          to restart the process following any updates to `server.py`
+    * `status` to check the status of the process
+    * `exit`
+
 # Client Installation
 ## Base Installation
 * clone repo `git clone git@github.com:rtmatt/led-sockets.git`
@@ -51,6 +69,24 @@ Note: if your domain isn't served over https, you'll need to use a ws:// url ins
 From the project root, run
 `source .venv/bin/activate && python src/client.py`
 The green and red LEDs should turn on. Once the client connects to the server, the red LED should turn off.
+## Supervisor
+At this point, the script will stop running once the ssh session closes. By adding supervisor, the script can be run on
+boot and restart if it crashes. Before proceeding, make sure the server is running as described above and ideally run by
+supervisor.
+* check if supervisor is installed `which supervisorctl`
+* install supervisor if it's not installed already `sudo apt install supervisor`
+* create a config file
+  `sudo cp resources/supervisor/led-sockets-client.conf.example /etc/supervisor/conf.d/led-sockets-client.conf`
+    * edit the file `/etc/supervisor/conf.d/led-sockets-client.conf` to set the `directory` and `stdout_logfile` values
+      using the proper absolute paths
+* run supervisor
+    * `sudo supervisorctl`
+    * `reread`
+    * `start processname:*` where `processname` is the name of the process output from status call
+        * if you ever need to restart or stop the process, use `restart processname` or `stop processname`. You'll need
+          to restart the process following any updates to `server.py`
+    * `status` to check the status of the process
+    * `exit`
 
 # Web Installation
 * drop the `public/index.html` file into your web root
@@ -58,4 +94,4 @@ The green and red LEDs should turn on. Once the client connects to the server, t
 
 # Raspberry Pi Setup
 * Install `gpiozero` library `sudo apt install python3-gpiozero` if it's not already installed
-* Wire up a green LED to pin 17, a blue LED to pin 12, and a red LED to pin 21.  Don't forget the resistors!
+* Wire up a green LED to pin 17, a blue LED to pin 12, and a red LED to pin 21. Don't forget the resistors!

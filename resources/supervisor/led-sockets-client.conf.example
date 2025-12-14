@@ -1,0 +1,13 @@
+[program:led-sockets-client]
+process_name=%(program_name)s_%(process_num)02d
+command=<ABSOLUTE_DIRECTORY_PATH>/.venv/bin/python <ABSOLUTE_DIRECTORY_PATH>/src/client.py
+directory=<ABSOLUTE_DIRECTORY_PATH>
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=root
+numprocs=1
+redirect_stderr=true
+stdout_logfile=<ABSOLUTE_DIRECTORY_PATH>/logs/client-worker.log
+stopwaitsecs=3600

@@ -1,0 +1,13 @@
+[program:led-sockets-server]
+process_name=%(program_name)s_%(process_num)02d
+command=<ABSOLUTE_DIRECTORY_PATH>/.venv/bin/python <ABSOLUTE_DIRECTORY_PATH>/src/server.py
+directory=<ABSOLUTE_DIRECTORY_PATH>
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=root
+numprocs=1
+redirect_stderr=true
+stdout_logfile=<ABSOLUTE_FILE_PATH>
+stopwaitsecs=3600
