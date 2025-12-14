@@ -1,4 +1,11 @@
 * Add status to web-ui (socket server connected, hardware connected)
 * Add web-UI reflection of hardware state
 * Add systemd process to keep socket server running on server
-* hide host information from UI codebase
+* add systemd process to run program on pi
+* hide host information from UI codebasest
+* reconnect/timeout status
+  * "server-side heartbeats (pings/pongs) to detect dead connections, implementing a smart client-side reconnect/rejoin logic with local data storage for missed messages, and potentially leveraging push notifications for critical alerts"
+* security
+* add output/display on pi showing how many people are connected to it
+* have pi detect when connection breaks and add push button for attempt to reconnect
+* add noisemaker
