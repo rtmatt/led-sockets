@@ -2,7 +2,7 @@
 process_name=%(program_name)s_%(process_num)02d
 command=<ABSOLUTE_DIRECTORY_PATH>/.venv/bin/python <ABSOLUTE_DIRECTORY_PATH>/src/client.py
 directory=<ABSOLUTE_DIRECTORY_PATH>
-autostart=true
+autostart=false
 autorestart=true
 stopasgroup=true
 killasgroup=true

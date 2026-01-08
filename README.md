@@ -79,6 +79,8 @@ supervisor.
   `sudo cp resources/supervisor/led-sockets-client.conf.example /etc/supervisor/conf.d/led-sockets-client.conf`
     * edit the file `/etc/supervisor/conf.d/led-sockets-client.conf` to set the `directory` and `stdout_logfile` values
       using the proper absolute paths
+    * Note: `autostart` is set to false by default to prevent the program from starting every time the pi reboots.
+      Change this if desired.
 * run supervisor
     * `sudo supervisorctl`
     * `reread`

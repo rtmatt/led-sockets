@@ -1,4 +1,5 @@
 import os
+import signal
 from dotenv import load_dotenv
 import asyncio
 from websockets.asyncio.server import serve
@@ -28,14 +29,38 @@ async def handler(websocket):
         connections.remove(websocket)
 
 
+async def setup():
+    try:
+        async with serve(
+                handler,
+                os.getenv('SERVER_HOST', 'localhost'),
+                int(os.getenv('SERVER_PORT', '8080'))
+        ) as server:
+            await server.serve_forever()
+    except asyncio.CancelledError:
+        pass
+
+
+async def shutdown(sig, tasks):
+    print(f"LED-Sockets server: shutting down ({sig.name})...")
+    for task in tasks:
+        task.cancel()
+
+    await asyncio.gather(*tasks, return_exceptions=True)
+    print("Done.")
+
+
 async def main():
-    async with serve(
-            handler,
-            os.getenv('SERVER_HOST', 'localhost'),
-            int(os.getenv('SERVER_PORT', '8080'))
-    ) as server:
-        await server.serve_forever()
+    loop = asyncio.get_running_loop()
+    tasks = [
+        asyncio.create_task(setup())
+    ]
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, lambda sig=sig: asyncio.create_task(shutdown(sig, tasks)))
+
+    await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":
+    print(f"LED-Sockets server: starting pid {os.getpid()}")
     asyncio.run(main())
