@@ -7,3 +7,4 @@
 * add output/display on pi showing how many people are connected to it
 * have pi detect when connection breaks and add push button for attempt to reconnect
 * add noisemaker
+- [ ] Graceful shutdown when running under supervisor
