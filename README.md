@@ -96,4 +96,9 @@ supervisor.
 
 # Raspberry Pi Setup
 * Install `gpiozero` library `sudo apt install python3-gpiozero` if it's not already installed
-* Wire up a green LED to pin 17, a blue LED to pin 12, and a red LED to pin 21. Don't forget the resistors!
+* Wire up:
+  * a green [LED](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_1.1.1_blinking_led_python.html) to pin 17 ...Don't forget the resistors!
+  * a blue LED to pin 12
+  * a red LED to pin 21
+  * a [passive buzzer](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_1.2.2_passive_buzzer_python.html) to pin 26
+  * a [button](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_2.1.1_button_python.html) to pin 20
