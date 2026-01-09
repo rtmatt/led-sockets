@@ -9,6 +9,8 @@ class Board:
         self.red_led = LED(21)
         self.buzzer = TonalBuzzer(26, octaves=2)
         self.button = Button(20)
+        self.button_press_handlers = []
+        self.button_release_handlers = []
         self.button.when_pressed = self.on_button_press
         self.button.when_released = self.on_button_release
         self.status_on()
@@ -20,6 +22,14 @@ class Board:
         self.set_green(False)
         self.set_red(False)
         self.stop_tone()
+
+    def add_button_press_handler(self, handler):
+        print('led-sockets board: adding button press handler')
+        self.button_press_handlers.append(handler)
+
+    def add_button_release_handler(self, handler):
+        print('led-sockets board: adding button release handler')
+        self.button_press_handlers.append(handler)
 
     def status_on(self):
         self.set_green(True)
@@ -63,8 +73,10 @@ class Board:
         else:
             self.stop_tone()
 
-    def on_button_press(self):
-        self.stop_tone()
+    def on_button_press(self, button):
+        for handler in self.button_press_handlers:
+            handler(button)
 
-    def on_button_release(self):
-        pass
+    def on_button_release(self, button):
+        for handler in self.button_release_handlers:
+            handler(button)
