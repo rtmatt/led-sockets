@@ -27,6 +27,14 @@
 
   function handleSocketMessages(websocket) {
     websocket.addEventListener('message', ({ data }) => {
+      const message = JSON.parse(data);
+      if (message && 'blue' in message) {
+        if (message.blue === 'on') {
+          state = true;
+        } else if (message.blue === 'off') {
+          state = false;
+        }
+      }
       console.log(data);
     });
   }
