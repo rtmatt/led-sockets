@@ -1,7 +1,7 @@
 import os
 import asyncio
 import signal
-from thing import Thing
+from board import Board
 from dotenv import load_dotenv
 from websockets.asyncio.client import connect
 import json
@@ -11,10 +11,10 @@ load_dotenv()
 host_url = os.getenv('WEBSOCKET_HOST_URL', 'ws://localhost:8765')
 
 
-async def process_message(message, thing):
+async def process_message(message, board):
     try:
         value = json.loads(message)["blue"]
-        thing.set_blue(True if value == "on" else False)
+        board.set_blue(True if value == "on" else False)
         print(value)
     except:
         print('invalid request')
@@ -22,11 +22,11 @@ async def process_message(message, thing):
 
 async def setup():
     try:
-        thing = Thing()
+        board = Board()
         async with connect(host_url) as websocket:
-            thing.status_connected()
+            board.status_connected()
             async for message in websocket:
-                await process_message(message, thing);
+                await process_message(message, board);
     except asyncio.CancelledError:
         pass
 

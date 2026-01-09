@@ -1,5 +1,5 @@
 from gpiozero import LED
-class Thing:
+class Board:
 
     def __init__(self):
         self.green_led = LED(17)
