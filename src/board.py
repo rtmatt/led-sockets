@@ -13,7 +13,7 @@ class Board:
         self.status_disconnected()
 
     def cleanup(self):
-        print("Cleaning up")
+        print('led-sockets board: cleaning up')
         self.set_blue(False)
         self.set_green(False)
         self.set_red(False)
@@ -82,6 +82,8 @@ def board_test():
 
 if __name__ == "__main__":
     try:
+        print('led-sockets board: starting test...')
         board_test()
+        print('led-sockets board: test complete')
     except KeyboardInterrupt:
         pass
