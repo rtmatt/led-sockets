@@ -1,18 +1,25 @@
-from gpiozero import LED
+from gpiozero import LED, TonalBuzzer, Button
+
+
 class Board:
 
     def __init__(self):
         self.green_led = LED(17)
         self.blue_led = LED(12)
         self.red_led = LED(21)
+        self.buzzer = TonalBuzzer(26, octaves=2)
+        self.button = Button(20)
+        self.button.when_pressed = self.on_button_press
+        self.button.when_released = self.on_button_release
         self.status_on()
         self.status_disconnected()
 
     def cleanup(self):
-        print("Cleaning up")
+        print('led-sockets board: cleaning up')
         self.set_blue(False)
         self.set_green(False)
         self.set_red(False)
+        self.stop_tone()
 
     def status_on(self):
         self.set_green(True)
@@ -43,3 +50,21 @@ class Board:
             self.red_led.on()
         else:
             self.red_led.off()
+
+    def play_tone(self, note="C5"):
+        self.buzzer.play(note)
+
+    def stop_tone(self):
+        self.buzzer.stop()
+
+    def buzz(self, on=True):
+        if (on):
+            self.play_tone('C3')
+        else:
+            self.stop_tone()
+
+    def on_button_press(self):
+        self.stop_tone()
+
+    def on_button_release(self):
+        pass
