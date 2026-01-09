@@ -1,5 +1,6 @@
 from time import sleep
 from board import Board
+from functools import partial
 
 TEST_ACTIVE = True
 
@@ -24,11 +25,12 @@ def board_test():
     sleep(0.5)
     board.buzz()
 
-    def onpress():
+    def onpress(board, button=None):
         global TEST_ACTIVE
         TEST_ACTIVE = False
+        board.stop_tone()
 
-    board.button.when_pressed = onpress
+    board.add_button_press_handler(partial(onpress, board))
 
     while TEST_ACTIVE:
         sleep(0.25)

@@ -30,11 +30,14 @@ async def handler(websocket):
 
 
 async def setup():
+    host = os.getenv('SERVER_HOST', 'localhost')
+    port = os.getenv('SERVER_PORT', '8080')
+    print(f"led-sockets server: starting on {host}:{port}")
     try:
         async with serve(
                 handler,
-                os.getenv('SERVER_HOST', 'localhost'),
-                int(os.getenv('SERVER_PORT', '8080'))
+                host,
+                int(port)
         ) as server:
             await server.serve_forever()
     except asyncio.CancelledError:
