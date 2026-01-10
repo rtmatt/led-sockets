@@ -8,3 +8,5 @@
 - [ ] have pi detect when connection breaks and add push button for attempt to reconnect
 - [x] add noisemaker
 - [x] Graceful shutdown when running under supervisor
+- [ ] add server disconnect/unavailable handling in hardware-client and ui-client
+- [ ] create and document unified development environment
