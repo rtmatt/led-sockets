@@ -71,7 +71,7 @@ boot and restart if it crashes.
 # Client Installation
 ## Base Installation
 * clone repo `git clone git@github.com:rtmatt/led-sockets.git`
-* set env `cp.env.example .env`. Set `WEBSOCKET_HOST_URL` to the URL of your websocket server (modify as needed)
+* set env `cp.env.example .env`. Set `HARDWARE_SOCKET_URL` to the URL of your websocket server (modify as needed)
 * activate virtualenv `python -m  venv venv --system-site-packages`
 * install dependencies `pip install -r requirements.txt`
 * run the client `python src/server.py`

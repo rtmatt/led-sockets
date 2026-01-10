@@ -10,7 +10,7 @@ from functools import partial
 
 load_dotenv()
 
-host_url = os.getenv('WEBSOCKET_HOST_URL', 'ws://localhost:8765')
+host_url = os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765')
 
 
 async def process_message(message, board):
