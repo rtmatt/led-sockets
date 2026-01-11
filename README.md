@@ -24,7 +24,7 @@ This project allows visitors of a website to turn a blue LED attached to a Raspb
 * install dependencies `pip install -r requirements.txt`
 ## Nginx setup
 Assuming you already have a domain/site set up, all you need to do is drop in the `location` block of the
-`resources/nginx.conf` file within the `server` block of your nginx config:
+`resources/nginx/led-sockets.conf` file within the `server` block of your nginx config:
 ```
 location /ws/ { # this will be the url of your websocket server
     proxy_pass http://localhost:8765; # Your internal WebSocket server.  Make sure the ports line up
