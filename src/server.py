@@ -13,9 +13,18 @@ hardware_connection = None
 
 client_connections = set()
 
+hardware_state = {"on": False, "message": ""}
+
+
 async def echo(websocket):
+    global hardware_connection
+    global hardware_state
     async for message in websocket:
         print(message)
+        if (websocket == hardware_connection):
+            payload = json.loads(message)
+            if (payload['type'] == 'hardware_state'):
+                hardware_state = payload['data']
         for connection in connections:
             if connection is not websocket:
                 print('sending to connection')
@@ -32,9 +41,10 @@ async def init_client(websocket):
     try:
         payload = {
             "type": 'client_connection_init',
-            "id": '',
+            "id": "",
             "data": {
-                "hardware_is_connected": hardware_connection is not None
+                "hardware_is_connected": hardware_connection is not None,
+                "hardware_state": hardware_state
             }
         }
         await websocket.send(json.dumps(payload))
@@ -45,22 +55,25 @@ async def init_client(websocket):
         client_connections.remove(websocket)
 
 
-async def init_hardware(websocket):
-    global hardware_connection
+async def init_hardware(websocket, payload):
+    global hardware_connection, hardware_state
     if (hardware_connection is not None):
         print('led-sockets server: hardware already connected. Ignoring')
         return
     connections.add(websocket)
     hardware_connection = websocket
+    assert payload['data']['hardware_state']
+    hardware_state = payload['data']['hardware_state']
     print(f"led-sockets server: new hardware connection")
     try:
         for connection in client_connections:
             print('led-sockets server: sending hardware connection to clients')
             payload = {
-                "type": 'hardware_connection',
-                "id": '',
+                "type": "hardware_connection",
+                "id": "",
                 "data": {
-                    "is_connected": True
+                    "is_connected": True,
+                    "state": hardware_state
                 }
             }
             await connection.send(json.dumps(payload))
@@ -70,13 +83,15 @@ async def init_hardware(websocket):
         print('led-sockets server: hardware disconnected')
         connections.remove(websocket)
         hardware_connection = None
+        hardware_state = {"on": False}
         for connection in client_connections:
             print('led-sockets server: sending hardware disconnection to clients')
             payload = {
-                "type": 'hardware_connection',
-                "id": '',
+                "type": "hardware_connection",
+                "id": "",
                 "data": {
-                    "is_connected": False
+                    "is_connected": False,
+                    "state": hardware_state
                 }
             }
             await connection.send(json.dumps(payload))
@@ -87,7 +102,7 @@ async def handler(websocket):
     payload = json.loads(message)
     assert payload['type'] == 'init'
     if (payload["data"]["entity_type"] == 'hardware'):
-        await init_hardware(websocket)
+        await init_hardware(websocket, payload)
     elif (payload["data"]["entity_type"] == 'client'):
         await init_client(websocket)
 

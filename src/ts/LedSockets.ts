@@ -8,6 +8,14 @@ type SocketMessage = {
   type: string;
   id: string;
 }
+type HardwareState = {
+  type: 'hardware_state'
+  id: string,
+  data: {
+    on: boolean
+    message: string
+  }
+}
 
 type ChangeStatePayload = SocketMessage & {
   type: 'change_state'
@@ -19,12 +27,14 @@ type ClientConnectionInitMessage = SocketMessage & {
   type: 'client_connection_init'
   data: {
     hardware_is_connected: boolean
+    hardware_state: HardwareState['data']
   }
 }
 type HardwareConnectionMessage = SocketMessage & {
-  type: 'hardware_connected'
+  type: 'hardware_connection'
   data: {
     is_connected: boolean
+    state: HardwareState['data']
   }
 }
 
@@ -78,7 +88,6 @@ export default class LedSockets {
         type: 'change_state',
       };
       this.websocket.send(JSON.stringify(payload));
-      this.updateState(is_on);
     });
   }
 
@@ -98,21 +107,19 @@ export default class LedSockets {
     const message: unknown = JSON.parse(data);
     if (message && typeof message === 'object' && 'type' in message && message.type) {
       let messageC = message as SocketMessage;
-      if (messageC.type === 'change_state') {
-        const payload = message as ChangeStatePayload;
-        if (payload.data.is_on) {
-          this.updateState(true);
-        } else {
-          this.updateState(false, this.state.status ? 'I turned it off' : '');
-        }
-      }
       if (messageC.type === 'hardware_connection') {
         const payload = message as HardwareConnectionMessage;
+        this.updateState(payload.data.state.on);
         this.updateHardwareStatus(payload.data.is_connected);
       }
       if (messageC.type === 'client_connection_init') {
         const payload = message as ClientConnectionInitMessage;
+        this.updateState(payload.data.hardware_state.on, payload.data.hardware_state.message);
         this.updateHardwareStatus(payload.data.hardware_is_connected);
+      }
+      if (messageC.type === 'hardware_state') {
+        const payload = message as HardwareState;
+        this.updateState(payload.data.on, payload.data.message);
       }
     }
   }
@@ -147,10 +154,6 @@ export default class LedSockets {
   ) {
     this.state.status = val;
     this.checkbox.checked = val;
-    if (val) {
-      this.messageContainer.innerText = message || 'The light and buzzer are on.  If I\'m around it\'s annoying me.';
-    } else {
-      this.messageContainer.innerText = message || '';
-    }
+    this.messageContainer.innerText = message || '';
   }
 }

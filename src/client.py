@@ -12,31 +12,46 @@ load_dotenv()
 
 host_url = os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765')
 
+state = {
+    "on": False,
+    "message": ""
+}
 
-async def process_message(message, board):
+
+async def process_message(message, board, websocket):
+    global state
     print(f"led-sockets client: received message {message}")
-    try:
-        payload = json.loads(message)
-        assert payload['type'] == 'change_state'
-        if (payload['data']['is_on']):
-            board.set_blue(True)
-            board.buzz()
-        else:
-            board.set_blue(False)
-            board.stop_tone()
-    except:
-        print('led-sockets client: invalid request')
+    payload = json.loads(message)
+    assert payload['type'] == 'change_state'
+    if (payload['data']['is_on']):
+        state['on'] = True
+        state['message'] = "The light and buzzer are on.  If I'm around it's annoying me."
+        board.set_blue(True)
+        board.buzz()
+    else:
+        state['on'] = False
+        state['message'] = ""
+        board.set_blue(False)
+        board.stop_tone()
+
+    payload = {
+        "type": 'hardware_state',
+        "id": '1',
+        "data": state
+    }
+    await websocket.send(json.dumps(payload))
 
 
 def on_button_press(board, websocket, button=None):
+    global state
     board.stop_tone()
     board.set_blue(False)
+    state['on'] = False
+    state['message'] = "I turned it off"
     payload = {
-        "type": 'change_state',
+        "type": 'hardware_state',
         "id": '',
-        "data": {
-            "is_on": False
-        }
+        "data": state
     }
     asyncio.run(websocket.send(json.dumps(payload)))
 
@@ -55,8 +70,9 @@ async def init_connection(websocket: ClientConnection):
         "type": "init",
         "id": "",
         "data": {
-            "entity_type": 'hardware'
-        }
+            "entity_type": 'hardware',
+            "hardware_state": state
+        },
     }))
 
 
@@ -65,7 +81,7 @@ async def init(websocket: ClientConnection):
     board = init_board(websocket)
     print("led-sockets client: awaiting messages")
     async for message in websocket:
-        await process_message(message, board)
+        await process_message(message, board, websocket)
 
 
 async def setup():
