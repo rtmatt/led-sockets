@@ -86,6 +86,15 @@ export default class LedSockets {
   private onSocketOpen() {
     console.log('Service: socket open event');
     this.updateSocketStatus('open');
+    this.websocket.send(
+      JSON.stringify({
+        id: '',
+        type: 'init',
+        data: {
+          entity_type: 'client',
+        },
+      }),
+    );
   }
 
   private updateSocketStatus(status: string) {

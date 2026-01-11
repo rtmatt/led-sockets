@@ -1,3 +1,4 @@
+import json
 import os
 import signal
 from dotenv import load_dotenv
@@ -8,6 +9,9 @@ load_dotenv()
 
 connections = set()
 
+hardware_connection = None
+
+client_connections = set()
 
 async def echo(websocket):
     async for message in websocket:
@@ -20,13 +24,41 @@ async def echo(websocket):
                 print('skipping origin connection')
 
 
-async def handler(websocket):
+async def init_client(websocket):
     connections.add(websocket)
-    print(f"New connection ({len(connections)} clients connected)")
+    client_connections.add(websocket)
+    print(f"led-sockets server: new client connection ({len(client_connections)} clients connected)")
     try:
         await echo(websocket)
     finally:
+        print('led-sockets server: client disconnected')
         connections.remove(websocket)
+        client_connections.remove(websocket)
+
+
+async def init_hardware(websocket):
+    global hardware_connection
+    if (hardware_connection is not None):
+        print('led-sockets server: hardware already connected. Ignoring')
+    connections.add(websocket)
+    hardware_connection = websocket
+    print(f"led-sockets server: new hardware connection")
+    try:
+        await echo(websocket)
+    finally:
+        print('led-sockets server: hardware disconnected')
+        connections.remove(websocket)
+        hardware_connection = None
+
+
+async def handler(websocket):
+    message = await websocket.recv()
+    payload = json.loads(message)
+    assert payload['type'] == 'init'
+    if (payload["data"]["entity_type"] == 'hardware'):
+        await init_hardware(websocket)
+    elif (payload["data"]["entity_type"] == 'client'):
+        await init_client(websocket)
 
 
 async def setup():

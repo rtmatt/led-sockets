@@ -42,11 +42,28 @@ def on_button_press(board, websocket, button=None):
     asyncio.run(websocket.send(json.dumps(payload)))
 
 
-async def init_board(websocket: ClientConnection):
+def init_board(websocket: ClientConnection):
     print("led-sockets client: initializing board...")
     board = Board()
     board.status_connected()
     board.add_button_press_handler(partial(on_button_press, board, websocket))
+    return board
+
+
+async def init_connection(websocket: ClientConnection):
+    print("led-sockets client: initializing connection...")
+    await websocket.send(json.dumps({
+        "type": "init",
+        "id": "",
+        "data": {
+            "entity_type": 'hardware'
+        }
+    }))
+
+
+async def init(websocket: ClientConnection):
+    await init_connection(websocket)
+    board = init_board(websocket)
     print("led-sockets client: awaiting messages")
     async for message in websocket:
         await process_message(message, board)
@@ -56,7 +73,7 @@ async def setup():
     try:
         print(f"led-sockets client: connecting to {host_url}...")
         async with connect(host_url) as websocket:
-            await init_board(websocket)
+            await init(websocket)
 
     except asyncio.CancelledError:
         pass
