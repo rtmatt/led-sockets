@@ -19,7 +19,8 @@ This project allows visitors of a website to turn a blue LED attached to a Raspb
 # Server Setup
 ## Base Installation
 * clone repo `git clone git@github.com:rtmatt/led-sockets.git`
-* set env `cp.env.example .env` (modify as needed)
+* set env `cp.env.example .env` (modify as needed). It's recommended to set the `ECHO_SERVER_HOST` to `localhost`
+  in production environments
 * activate virtualenv `python -m venv .venv`
 * install dependencies `pip install -r requirements.txt`
 ## Nginx setup
@@ -115,26 +116,106 @@ supervisor.
 
 # Contributing
 ## Development Setup
-_Coming soon_
-### Client
+Development requires two environments:
+
+### 1. Raspberry Pi (Echo Server, Hardware Client)
+This machine is used to run the hardware client app (for board integration) as well as the echo server app.  
+The echo server could be ran elsewhere, but running it on the same machine as the hardware client makes networking
+simple.
+* I'm using a Pi 5 with Raspberry Pi OS (Debian 12)
+* Python 3.11.2
+* Network-accessible via `raspberrypi.local` (this should be in place from default pi setup)
+### 2. Primary Machine (UI Client)
+This machine is used for develoment of the ui client, as well as optional development of remaining assets to be
+copied/synced to Pi. If you have an IDE you like on your Pi, you could run this on the Pi as well. I don't, so I don't.
+* NVM with Node 24.11.1
+
+## 1. Raspberry Pi Setup
+On your Pi, pull in the codebase to your directory of choice:
 ```
+git clone git@github.com:rtmatt/led-sockets.git
+```
+Within the directory, create the python venv, activate it, and install dependencies:
+```
+python -m venv .venv --system-site-packages
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+The `system-site-packages` flag gives the venv access to system-wide packages. In our case, we want access to the system
+gpiozero package to enable the app to modify the state of the board.
+
+### Running
+First, run the echo server script:
+```
+python src/server.py
+```
+This needs to be run before the client.
+
+Second, in another ssh session, run the hardware client script. Don't forget to activate the venv first:
+```
+source .venv/bin/activate
+python src/client.py
+```
+
+Alternatively, the preceding commands can be run via the following without activating the venv:
+```
+.venv/bin/python src/server.py
+.venv/bin/python src/client.py
+```
+### Verify
+While the client and server are runnning, in a third session in the Pi:
+```
+.venv/bin/websockets ws://localhost:8765
+```
+In the prompt, send:
+```
+{"type": "change_state","data": {"is_on": true}}
+```
+The light and buzzer on the Pi should activate. You can leave it in this state if you like. Some people enjoy the sound.
+If you don't, you can turn it off:
+```
+{"type": "change_state","data": {"is_on": false}}
+```
+### Environment Configuration
+The environment can be configured by setting `.env` vars. First, copy the example file:
+```
+cp.env.example .env
+```
+You shouldn't need to change any of these values, but you can if you want.
+
+### Development
+The client and server scripts will need to be manually stopped and restarted whenever you make changes to them. Always
+remember to start the server first, then the client.
+
+## 2. Primary Machine Setup
+I prefer not to use the Pi for actual development, so I set up my primary develpment for development of the UI client.
+First, clone the repo:
+```
+git clone git@github.com:rtmatt/led-sockets.git
+```
+Within the project directory, create the environment file, activate the proper node version and install dependencies:
+```
+cp .env.example .env
 nvm use
 npm install
 ```
-In `.env`, make sure `VITE_WEB_SOCKET_URL` is set to the websocket you'd like to use during development, and the
-`VITE_PRODUCTION_WEB_SOCKET_URL` is set to the production websocket URL.
-## Client Development
+### Running
 The client app uses [vite](https://vite.dev/)
 To run the development server
 ```
 npm run dev
 ```
-### Build Files
+### Contributing
 Vite builds files to the `public` directory. These files should not be modified manually, and they should not be
-committed to source control alongside source code changes.
+committed to source control alongside source code changes. However, the final commit before submitting a PR should be
+the resulting build files with the message `CHORE: build`
 
-As the last commit prior to a pull request, run
+To run a production build, use the following. Make sure the `.env` `VITE_PRODUCTION_WEB_SOCKET_URL` is set to the
+websocket URL used in your production environment.
 ```
 npm run build
 ```
-Commit the resulting files with the message `CHORE: build`
+You can verify the build via:
+```
+npm run preview
+```
