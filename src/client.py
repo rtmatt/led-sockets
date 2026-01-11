@@ -16,25 +16,30 @@ host_url = os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765')
 async def process_message(message, board):
     print(f"led-sockets client: received message {message}")
     try:
-        value = json.loads(message)["blue"]
-        if (value == "on"):
-            board.set_blue(True)
-            board.buzz()
-        else:
-            board.set_blue(False)
-            board.stop_tone()
-
-        print(value)
+        payload = json.loads(message)
+        if (payload['type'] == 'change_state'):
+            print(payload['data'])
+            if (payload['data']['is_on']):
+                board.set_blue(True)
+                board.buzz()
+            else:
+                board.set_blue(False)
+                board.stop_tone()
     except:
-        print('invalid request')
+        print('led-sockets client: invalid request')
 
 
 def on_button_press(board, websocket, button=None):
     board.stop_tone()
     board.set_blue(False)
-    asyncio.run(websocket.send(json.dumps({
-        "blue": "off"
-    })))
+    payload = {
+        "type": 'change_state',
+        "id": '',
+        "data": {
+            "is_on": False
+        }
+    }
+    asyncio.run(websocket.send(json.dumps(payload)))
 
 
 async def init_board(websocket: ClientConnection):

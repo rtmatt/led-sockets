@@ -45,7 +45,7 @@ async def setup():
 
 
 async def shutdown(sig, tasks):
-    print(f"LED-Sockets server: shutting down ({sig.name})...")
+    print(f"led-sockets server: shutting down ({sig.name})...")
     for task in tasks:
         task.cancel()
 
@@ -65,5 +65,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    print(f"LED-Sockets server: starting pid {os.getpid()}")
+    print(f"led-sockets server: starting pid {os.getpid()}")
     asyncio.run(main())
