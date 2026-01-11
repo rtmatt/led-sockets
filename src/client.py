@@ -17,14 +17,13 @@ async def process_message(message, board):
     print(f"led-sockets client: received message {message}")
     try:
         payload = json.loads(message)
-        if (payload['type'] == 'change_state'):
-            print(payload['data'])
-            if (payload['data']['is_on']):
-                board.set_blue(True)
-                board.buzz()
-            else:
-                board.set_blue(False)
-                board.stop_tone()
+        assert payload['type'] == 'change_state'
+        if (payload['data']['is_on']):
+            board.set_blue(True)
+            board.buzz()
+        else:
+            board.set_blue(False)
+            board.stop_tone()
     except:
         print('led-sockets client: invalid request')
 
