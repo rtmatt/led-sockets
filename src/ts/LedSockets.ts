@@ -4,12 +4,28 @@ const {
   PROD,
 } = import.meta.env;
 
-type ChangeStatePayload = {
+type SocketMessage = {
+  type: string;
+  id: string;
+}
+
+type ChangeStatePayload = SocketMessage & {
   type: 'change_state'
-  id: string
   data: {
     is_on: boolean
-  },
+  }
+}
+type ClientConnectionInitMessage = SocketMessage & {
+  type: 'client_connection_init'
+  data: {
+    hardware_is_connected: boolean
+  }
+}
+type HardwareConnectionMessage = SocketMessage & {
+  type: 'hardware_connected'
+  data: {
+    is_connected: boolean
+  }
 }
 
 export default class LedSockets {
@@ -19,12 +35,19 @@ export default class LedSockets {
 
   private messageContainer: HTMLElement;
 
-  private state: { socket: string; status: boolean } = {
+  private state: {
+    socket: string;
+    status: boolean;
+    hardware: boolean
+  } = {
     socket: 'disconnected',
     status: false,
+    hardware: false,
   };
 
   private statusContainer: HTMLElement;
+
+  private hardwareStatusContainer: HTMLElement;
 
   private websocket: WebSocket;
 
@@ -34,6 +57,7 @@ export default class LedSockets {
     this.checkbox = document.getElementById('checkbox') as HTMLInputElement;
     this.messageContainer = document.getElementById('message-container') as HTMLElement;
     this.statusContainer = document.getElementById('status') as HTMLElement;
+    this.hardwareStatusContainer = document.getElementById('hStatus') as HTMLElement;
     this._addSocketListeners();
     this._addUiListeners();
   }
@@ -72,13 +96,23 @@ export default class LedSockets {
     const { data } = event;
     console.log(`Service: Message received:${data}`);
     const message: unknown = JSON.parse(data);
-    // @todo: more elegant type verification
-    if (message && typeof message === 'object' && 'type' in message && message.type && message.type === 'change_state') {
-      const payload = message as ChangeStatePayload;
-      if (payload.data.is_on) {
-        this.updateState(true);
-      } else {
-        this.updateState(false, this.state.status ? 'I turned it off' : '');
+    if (message && typeof message === 'object' && 'type' in message && message.type) {
+      let messageC = message as SocketMessage;
+      if (messageC.type === 'change_state') {
+        const payload = message as ChangeStatePayload;
+        if (payload.data.is_on) {
+          this.updateState(true);
+        } else {
+          this.updateState(false, this.state.status ? 'I turned it off' : '');
+        }
+      }
+      if (messageC.type === 'hardware_connection') {
+        const payload = message as HardwareConnectionMessage;
+        this.updateHardwareStatus(payload.data.is_connected);
+      }
+      if (messageC.type === 'client_connection_init') {
+        const payload = message as ClientConnectionInitMessage;
+        this.updateHardwareStatus(payload.data.hardware_is_connected);
       }
     }
   }
@@ -100,6 +134,11 @@ export default class LedSockets {
   private updateSocketStatus(status: string) {
     this.state.socket = status;
     this.statusContainer.innerText = status;
+  }
+
+  private updateHardwareStatus(connected: boolean) {
+    this.state.hardware = connected;
+    this.hardwareStatusContainer.innerText = connected ? 'Connected' : 'Disconnected';
   }
 
   private updateState(

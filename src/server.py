@@ -25,10 +25,19 @@ async def echo(websocket):
 
 
 async def init_client(websocket):
+    global hardware_connection
     connections.add(websocket)
     client_connections.add(websocket)
     print(f"led-sockets server: new client connection ({len(client_connections)} clients connected)")
     try:
+        payload = {
+            "type": 'client_connection_init',
+            "id": '',
+            "data": {
+                "hardware_is_connected": hardware_connection is not None
+            }
+        }
+        await websocket.send(json.dumps(payload))
         await echo(websocket)
     finally:
         print('led-sockets server: client disconnected')
@@ -45,11 +54,32 @@ async def init_hardware(websocket):
     hardware_connection = websocket
     print(f"led-sockets server: new hardware connection")
     try:
+        for connection in client_connections:
+            print('led-sockets server: sending hardware connection to clients')
+            payload = {
+                "type": 'hardware_connection',
+                "id": '',
+                "data": {
+                    "is_connected": True
+                }
+            }
+            await connection.send(json.dumps(payload))
+
         await echo(websocket)
     finally:
         print('led-sockets server: hardware disconnected')
         connections.remove(websocket)
         hardware_connection = None
+        for connection in client_connections:
+            print('led-sockets server: sending hardware disconnection to clients')
+            payload = {
+                "type": 'hardware_connection',
+                "id": '',
+                "data": {
+                    "is_connected": False
+                }
+            }
+            await connection.send(json.dumps(payload))
 
 
 async def handler(websocket):
