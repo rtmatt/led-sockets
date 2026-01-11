@@ -92,13 +92,14 @@ export default class LedSockets {
   }
 
   private onSocketClose() {
-    console.log('Service: socket close event');
-    this.updateSocketStatus('closed');
+    this.updateHardwareStatus(false);
+    this.updateSocketStatus('Closed');
   }
 
   private onSocketError() {
     console.log('Service: socket error event');
-    this.updateSocketStatus('error');
+    this.updateHardwareStatus(false);
+    this.updateSocketStatus('Error');
   }
 
   private onSocketMessage(event: MessageEvent) {
@@ -126,7 +127,7 @@ export default class LedSockets {
 
   private onSocketOpen() {
     console.log('Service: socket open event');
-    this.updateSocketStatus('open');
+    this.updateSocketStatus('Open');
     this.websocket.send(
       JSON.stringify({
         id: '',
