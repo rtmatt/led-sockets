@@ -63,7 +63,7 @@ export default class LedSockets {
   }
 
   private _addSocketListeners() {
-    this.websocket.addEventListener('closed', this.onSocketClose.bind(this));
+    this.websocket.addEventListener('close', this.onSocketClose.bind(this));
     this.websocket.addEventListener('error', this.onSocketError.bind(this));
     this.websocket.addEventListener('message', this.onSocketMessage.bind(this));
     this.websocket.addEventListener('open', this.onSocketOpen.bind(this));
