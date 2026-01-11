@@ -14,54 +14,6 @@
 <button id="button">Click Me</button>
 <input disabled readonly id="checkbox" type="checkbox" />
 <div id="message-container"></div>
-<script src="src/ts/index.ts"></script>
-<script>
-  let state = false;
-  let messageContainer;
-  let checkbox;
-
-  function updateState(val, message) {
-    state = val;
-    checkbox.checked = state;
-    if (state) {
-      messageContainer.innerText = message || 'The light and buzzer are on.  If I\'m around it\'s annoying me.';
-    } else {
-      messageContainer.innerText = message || '';
-    }
-  }
-
-  function handleButton(button, websocket, checkbox) {
-    button.addEventListener('click', () => {
-      const data = JSON.stringify({
-        blue: state ? 'off' : 'on'
-      });
-      websocket.send(data);
-      updateState(!state);
-    });
-  }
-
-  function handleSocketMessages(websocket, checkbox) {
-    websocket.addEventListener('message', ({ data }) => {
-      const message = JSON.parse(data);
-      console.log(`Message received:${data}`);
-      if (message && 'blue' in message) {
-        if (message.blue === 'on') {
-          updateState(true);
-        } else if (message.blue === 'off') {
-          updateState(false, state ? 'I turned it off' : '');
-        }
-      }
-    });
-  }
-
-  window.addEventListener('DOMContentLoaded', () => {
-    const button = document.getElementById('button');
-    const websocket = new WebSocket('wss://led-sockets.mattemrick.com/ws/');
-    checkbox = document.getElementById('checkbox');
-    messageContainer = document.getElementById('message-container');
-    handleButton(button, websocket, checkbox);
-    handleSocketMessages(websocket, checkbox);
-  });
-</script>
+<script type="module" src="src/ts/index.ts"></script>
 </body>
 </html>
