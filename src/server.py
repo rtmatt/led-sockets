@@ -40,6 +40,7 @@ async def init_hardware(websocket):
     global hardware_connection
     if (hardware_connection is not None):
         print('led-sockets server: hardware already connected. Ignoring')
+        return
     connections.add(websocket)
     hardware_connection = websocket
     print(f"led-sockets server: new hardware connection")
