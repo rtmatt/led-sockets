@@ -10,19 +10,7 @@ type ChangeStatePayload = {
   data: {
     is_on: boolean
   },
-  blue: 'on' | 'off'
 }
-
-const temp: ChangeStatePayload = {
-  type: 'change_state',
-  id: '',
-  data: {
-    is_on: false,
-  },
-  blue: 'off',
-};
-
-console.log(JSON.stringify(temp));
 
 export default class LedSockets {
   private button: HTMLButtonElement;
@@ -61,7 +49,6 @@ export default class LedSockets {
     this.button.addEventListener('click', () => {
       let is_on = !this.state.status;
       const payload: ChangeStatePayload = {
-        blue: is_on ? 'on' : 'off',
         data: { is_on: is_on },
         id: '',
         type: 'change_state',
