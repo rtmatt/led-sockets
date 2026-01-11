@@ -112,3 +112,29 @@ supervisor.
   * a red LED to pin 21
   * a [passive buzzer](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_1.2.2_passive_buzzer_python.html) to pin 26
   * a [button](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_2.1.1_button_python.html) to pin 20
+
+# Contributing
+## Development Setup
+_Coming soon_
+### Client
+```
+nvm use
+npm install
+```
+In `.env`, make sure `VITE_WEB_SOCKET_URL` is set to the websocket you'd like to use during development, and the
+`VITE_PRODUCTION_WEB_SOCKET_URL` is set to the production websocket URL.
+## Client Development
+The client app uses [vite](https://vite.dev/)
+To run the development server
+```
+npm run dev
+```
+### Build Files
+Vite builds files to the `public` directory. These files should not be modified manually, and they should not be
+committed to source control alongside source code changes.
+
+As the last commit prior to a pull request, run
+```
+npm run build
+```
+Commit the resulting files with the message `CHORE: build`
