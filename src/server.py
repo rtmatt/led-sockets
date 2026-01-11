@@ -30,8 +30,8 @@ async def handler(websocket):
 
 
 async def setup():
-    host = os.getenv('SERVER_HOST', 'localhost')
-    port = os.getenv('SERVER_PORT', '8080')
+    host = os.getenv('ECHO_SERVER_HOST', '0.0.0.0')
+    port = os.getenv('ECHO_SERVER_PORT', '8765')
     print(f"led-sockets server: starting on {host}:{port}")
     try:
         async with serve(

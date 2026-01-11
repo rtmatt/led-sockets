@@ -23,8 +23,18 @@ This project allows visitors of a website to turn a blue LED attached to a Raspb
 * activate virtualenv `python -m venv .venv`
 * install dependencies `pip install -r requirements.txt`
 ## Nginx setup
-Assuming you already have a domain/site set up, all you need to do is drop in the `location`
-block of the `resources/nginx.conf` file within the `server` block of your nginx config and restart the server
+Assuming you already have a domain/site set up, all you need to do is drop in the `location` block of the
+`resources/nginx.conf` file within the `server` block of your nginx config:
+```
+location /ws/ { # this will be the url of your websocket server
+    proxy_pass http://localhost:8765; # Your internal WebSocket server.  Make sure the ports line up
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_set_header Host $host;
+}
+```
+and restart the server
 `sudo systemctl restart nginx`
 ## Run it and test
 From the project root, run
@@ -61,7 +71,7 @@ boot and restart if it crashes.
 # Client Installation
 ## Base Installation
 * clone repo `git clone git@github.com:rtmatt/led-sockets.git`
-* set env `cp.env.example .env`. Set `WEBSOCKET_HOST_URL` to the URL of your websocket server (modify as needed)
+* set env `cp.env.example .env`. Set `HARDWARE_SOCKET_URL` to the URL of your websocket server (modify as needed)
 * activate virtualenv `python -m  venv venv --system-site-packages`
 * install dependencies `pip install -r requirements.txt`
 * run the client `python src/server.py`
