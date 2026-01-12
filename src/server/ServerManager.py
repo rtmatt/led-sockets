@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from websockets.asyncio.server import ServerConnection
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
-
+from ServerHandler import ServerHandler
 
 class ServerManager:
     """
@@ -57,7 +57,7 @@ class ServerManager:
         except (ConnectionClosedOK, ConnectionClosedError):
             pass
         except Exception as e:
-            self._log(f"Error handling connection fom {websocket.remote_address}:: {e}")
+            self._log(f"Error handling connection fom {websocket.remote_address}: {e}")
         self._record_disconnect(websocket)
 
     async def _disconnect_all(self):
@@ -82,7 +82,7 @@ class ServerManager:
 
     async def _stop_server(self):
         await self._disconnect_all()
-        this._log("G'bye now!")
+        self._log("G'bye now!")
 
     async def _start_server(self):
         loop = asyncio.get_running_loop()
@@ -109,6 +109,6 @@ if __name__ == '__main__':
     server = ServerManager(
         host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
         port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
-        handler=DummyHandler()
+        handler=ServerHandler()
     )
     server.serve()
