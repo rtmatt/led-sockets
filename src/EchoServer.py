@@ -24,19 +24,25 @@ class EchoServer:
 
     async def handle_connection(self, websocket: ServerConnection):
         """Entry point for new websocket connections."""
-        message = await websocket.recv()
+        try:
+            message = await websocket.recv()
+        except Exception:
+            return
+
         try:
             data = json.loads(message)
         except (json.JSONDecodeError, Exception):
             await self._send_error(websocket, "Invalid JSON format")
+            await websocket.close()
             return
 
         init_data = data.get("data")
-        entity_type = init_data.get("entity_type") if init_data else None
+        entity_type = init_data.get("entity_type") if isinstance(init_data, dict) else None
 
         if data.get('type') != 'init' or not entity_type:
             self._log(f"Invalid init payload {message}")
             await self._send_error(websocket, "Invalid init payload")
+            await websocket.close()
             return
 
         if entity_type == 'hardware':
@@ -50,7 +56,8 @@ class EchoServer:
 
     async def _init_hardware(self, websocket: ServerConnection, payload: dict):
         if self.hardware_connected:
-            print(f'{self.LOG_PREFIX} hardware already connected. Ignoring')
+            self._log("Hardware already connected. Closing new connection attempt.")
+            await websocket.close(1008, "Hardware already connected")
             return
 
         hardware_state = payload.get("data", {}).get('hardware_state')
@@ -118,7 +125,9 @@ class EchoServer:
                 self._log(f"hEcho \"{message}\"")
                 payload = json.loads(message)
                 if payload.get('type') == 'hardware_state':
-                    self.hardware_state = payload.get('data')
+                    data = payload.get('data')
+                    if data:
+                        self.hardware_state = payload.get('data')
                 await self.broadcast_to_others(message, websocket)
             except json.JSONDecodeError:
                 self._log("received invalid JSON from hardware")
