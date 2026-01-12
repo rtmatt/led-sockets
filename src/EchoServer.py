@@ -35,7 +35,7 @@ class EchoServer:
         entity_type = init_data.get("entity_type") if init_data else None
 
         if data.get('type') != 'init' or not entity_type:
-            self._log("Invalid init payload {message}")
+            self._log(f"Invalid init payload {message}")
             await self._send_error(websocket, "Invalid init payload")
             return
 
@@ -68,7 +68,7 @@ class EchoServer:
             await self._broadcast_connection_status()
             await self._hardware_message_loop(websocket)
         finally:
-            self.log('hardware disconnected')
+            self._log('hardware disconnected')
             self.connections.discard(websocket)
             self.hardware_connection = None
             self.hardware_state = self.INITIAL_HARDWARE_STATE.copy()
@@ -115,7 +115,7 @@ class EchoServer:
     async def _hardware_message_loop(self, websocket: ServerConnection):
         async for message in websocket:
             try:
-                self._log("hEcho \"{message}\"")
+                self._log(f"hEcho \"{message}\"")
                 payload = json.loads(message)
                 if payload.get('type') == 'hardware_state':
                     self.hardware_state = payload.get('data')
