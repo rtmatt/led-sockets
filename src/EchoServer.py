@@ -19,10 +19,13 @@ class EchoServer:
     def hardware_connected(self) -> bool:
         return self.hardware_connection is not None
 
+    def _log(self, message):
+        print(f"{self.LOG_PREFIX} {message}")
+
     async def handle_connection(self, websocket: ServerConnection):
         """Entry point for new websocket connections."""
+        message = await websocket.recv()
         try:
-            message = await websocket.recv()
             data = json.loads(message)
         except (json.JSONDecodeError, Exception):
             await self._send_error(websocket, "Invalid JSON format")
@@ -32,7 +35,7 @@ class EchoServer:
         entity_type = init_data.get("entity_type") if init_data else None
 
         if data.get('type') != 'init' or not entity_type:
-            print(f"{self.LOG_PREFIX} Invalid init payload {message}")
+            self._log("Invalid init payload {message}")
             await self._send_error(websocket, "Invalid init payload")
             return
 
@@ -52,11 +55,11 @@ class EchoServer:
 
         hardware_state = payload.get("data", {}).get('hardware_state')
         if not hardware_state:
-            print(f"{self.LOG_PREFIX} Invalid init payload hardware_state {payload}")
+            self._log(f"Invalid init payload hardware_state {payload}")
             await self._send_error(websocket, "Invalid init payload hardware state")
             return
 
-        print(f"{self.LOG_PREFIX} new hardware connection")
+        self._log("new hardware connection")
         self.connections.add(websocket)
         self.hardware_connection = websocket
         self.hardware_state = hardware_state
@@ -65,14 +68,14 @@ class EchoServer:
             await self._broadcast_connection_status()
             await self._hardware_message_loop(websocket)
         finally:
-            print(f'{self.LOG_PREFIX} hardware disconnected')
+            self.log('hardware disconnected')
             self.connections.discard(websocket)
             self.hardware_connection = None
             self.hardware_state = self.INITIAL_HARDWARE_STATE.copy()
             await self._broadcast_connection_status()
 
     async def _broadcast_connection_status(self):
-        print(f'{self.LOG_PREFIX} sending hardware connection status to clients')
+        self._log('sending hardware connection status to clients')
         payload = {
             "type": "hardware_connection",
             "id": "",
@@ -92,8 +95,7 @@ class EchoServer:
     async def _init_client(self, websocket: ServerConnection):
         self.connections.add(websocket)
         self.client_connections.add(websocket)
-        print(f"{self.LOG_PREFIX} new client connection ({len(self.client_connections)} clients)")
-
+        self._log(f"new client connection ({len(self.client_connections)} clients)")
         try:
             init_payload = {
                 "type": 'client_connection_init',
@@ -113,22 +115,22 @@ class EchoServer:
     async def _hardware_message_loop(self, websocket: ServerConnection):
         async for message in websocket:
             try:
-                print(f"{self.LOG_PREFIX} hEcho \"{message}\"")
+                self._log("hEcho \"{message}\"")
                 payload = json.loads(message)
                 if payload.get('type') == 'hardware_state':
                     self.hardware_state = payload.get('data')
-                await self.broadcast_raw(message, websocket)
+                await self.broadcast_to_others(message, websocket)
             except json.JSONDecodeError:
-                print(f"{self.LOG_PREFIX} received invalid JSON from hardware")
+                self._log("received invalid JSON from hardware")
             except Exception as e:
-                print(f"{self.LOG_PREFIX} error in hardware loop: {e}")
+                self._log(f"error in hardware loop: {e}")
 
     async def _client_message_loop(self, websocket: ServerConnection):
         async for message in websocket:
-            print(f"{self.LOG_PREFIX} cEcho \"{message}\"")
-            await self.broadcast_raw(message, websocket)
+            self._log(f"cEcho \"{message}\"")
+            await self.broadcast_to_others(message, websocket)
 
-    async def broadcast_raw(self, message: str, source_socket: ServerConnection):
+    async def broadcast_to_others(self, message: str, source_socket: ServerConnection):
         tasks = [conn.send(message) for conn in self.connections if conn is not source_socket]
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
