@@ -5,6 +5,7 @@ from functools import partial
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 from dotenv import load_dotenv
 from websockets.asyncio.server import serve
+from Handler import Handler
 
 class Server:
     LOG_PREFIX = "led-sockets server:"
