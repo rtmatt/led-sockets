@@ -9,4 +9,4 @@
 - [x] add noisemaker
 - [x] Graceful shutdown when running under supervisor
 - [ ] add server disconnect/unavailable handling in hardware-client and ui-client
-- [ ] create and document unified development environment
+- [x] create and document unified development environment
