@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from websockets.asyncio.server import ServerConnection
 
@@ -23,13 +24,16 @@ class ServerHandler:
         # wait for initialization message from connection
         init_message = await websocket.recv()
 
-        # determine the entity type from message information
-        entity_type = 'hardware' if init_message == 'h' else 'client'
+        # @todo: try catch (json parse, not init, entity type invalid/absent
+        payload = json.loads(init_message)
+        # verify the payload represents an init event
+        payload_type = payload['type']
+        is_init = payload_type in ['init_client', 'init_hardware']
 
         # route initialization based on entity type
-        if entity_type == 'hardware':
+        if payload_type == 'init_hardware':
             await self._init_hardware(websocket, init_message)
-        elif entity_type == 'client':
+        elif payload_type == 'init_client':
             await self._init_client(websocket, init_message)
 
     async def _init_hardware(self, websocket: ServerConnection, init_message):
@@ -40,16 +44,40 @@ class ServerHandler:
             self._log('hardware already connected; aborting')
             raise Exception('hardware already connected')
 
+        # @todo: try catch (json parse, not init, entity type invalid/absent
+        # and ensure provided data is valid before proceeding
+        payload = json.loads(init_message)
+        # verify the payload represents an init event
+        payload_type = payload['type']
+        is_init = payload_type == 'init_hardware'
+        state = payload['relationships']['hardware_state']['data']['attributes']
+
         # store the hardware connection
         self._hardware_connection = websocket
         # set hardware state from init payload info
-        self._hardware_state = {}
+        self._hardware_state = state
 
         # confirm init; @todo: don't need to await this for any reason, really
         await websocket.send("Hello, hardware")
 
+        # payload for client notice of hardware connection
+        payload = {
+            "type": "hardware_connection",
+            "attributes": {
+                "is_connected": self._hardware_connection is not None  # true
+            },
+            "relationships": {
+                "hardware_state": {
+                    "data": {
+                        "type": "hardware_state",
+                        "attributes": self._hardware_state
+                    }
+                }
+            }
+        }
+
         # let all connected clients know hardware has connected
-        tasks = [client.send('Hardware connected [Info]') for client in list(self._client_connections)]
+        tasks = [client.send(json.dumps(payload)) for client in list(self._client_connections)]
         await asyncio.gather(*tasks, return_exceptions=True)
 
         # send subsequent messages to clients.  fall through hardware init forwards message to clients
@@ -66,8 +94,24 @@ class ServerHandler:
         self._hardware_connection = None
         # reset hardware state
         self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
+
+        # payload for client notice of hardware disconnection
+        payload = {
+            "type": "hardware_connection",
+            "attributes": {
+                "is_connected": self._hardware_connection is not None  # false
+            },
+            "relationships": {
+                "hardware_state": {
+                    "data": {
+                        "type": "hardware_state",
+                        "attributes": self._hardware_state  # should be reset
+                    }
+                }
+            }
+        }
         # compile async tasks to send disconnect to clients
-        disconnect_tasks = [client.send('hardware disconnect') for client in self._client_connections]
+        disconnect_tasks = [client.send(json.dumps(payload)) for client in self._client_connections]
         # wait for client messages to complete sending
         result = await asyncio.gather(*disconnect_tasks, return_exceptions=True)
         print(result)
@@ -76,8 +120,25 @@ class ServerHandler:
         self._log(f'Initializing client from {websocket.remote_address}')
         # store the connection
         self._client_connections.add(websocket)
+
+        # payload to client confirming init and providing initial state
+        payload = {
+            "type": "client_init",
+            "attributes": {
+                "hardware_is_connected": self._hardware_connection is not None,
+                "message": "Hello, client!"
+            },
+            "relationships": {
+                "hardware_state": {
+                    "data": {
+                        "type": "hardware_state",
+                        "attributes": self._hardware_state
+                    }
+                }
+            }
+        }
         # send state/status info to client for init (hardware connection status/state)
-        await websocket.send("Hello, client. [Info]")
+        await websocket.send(json.dumps(payload))
         # listen for messages from connection
         async for message in websocket:
             self._log(f'Client message: {message}')
