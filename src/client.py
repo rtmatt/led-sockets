@@ -9,10 +9,13 @@ from websockets import ClientConnection
 from websockets.asyncio.client import connect
 
 from board import Board
+from MockBoard import MockBoard
+from ClientManager import ClientManager
 
 load_dotenv()
 
-host_url = os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765')
+# host_url = os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765')
+host_url= 'ws://raspberrypi.local:8765'
 
 state = {
     "on": False,
@@ -66,7 +69,8 @@ def on_button_press(board, websocket, button=None):
 
 def init_board(websocket: ClientConnection):
     print("led-sockets client: initializing board...")
-    board = Board()
+    # board = Board()
+    board = MockBoard()
     board.status_connected()
     board.add_button_press_handler(partial(on_button_press, board, websocket))
     return board
@@ -129,5 +133,12 @@ async def main():
 
 
 if __name__ == "__main__":
+    load_dotenv()
+    # server = ClientManager(
+    #     # host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
+    #     # port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
+    #     # handler=ServerHandler()
+    # )
+    # server.serve()
     print(f"led-sockets client: starting pid {os.getpid()}")
     asyncio.run(main())
