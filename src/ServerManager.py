@@ -8,13 +8,14 @@ from websockets.asyncio.server import ServerConnection
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 from ServerHandler import ServerHandler
+import datetime
 
 class ServerManager:
     """
     Manages top-level server orchestration starting/stopping, opening/closing connections, system signal handling, etc
     offloads business logic to its handler
     """
-    LOG_PREFIX = 'led-sockets server:'
+    LOG_PREFIX = 'led-sockets-server'
     SHUTDOWN_PAYLOAD = 'Server shutting down'
     CLOSE_CODE = 1001
 
@@ -31,7 +32,8 @@ class ServerManager:
         return f"{self._host}:{self._port}"
 
     def _log(self, msg):
-        print(f"{self.LOG_PREFIX} {msg}")
+        timestamp = datetime.datetime.now().isoformat()
+        print(f"{self.LOG_PREFIX} [{timestamp}] {msg}")
 
     def _record_connection(self, websocket: ServerConnection):
         self._log(f"Connection received from {websocket.remote_address}")

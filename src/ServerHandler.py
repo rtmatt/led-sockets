@@ -2,10 +2,11 @@ import asyncio
 import json
 
 from websockets.asyncio.server import ServerConnection
+import datetime
 
 
 class ServerHandler:
-    LOG_PREFIX = 'led-sockets server:'
+    LOG_PREFIX = 'led-sockets-server'
     DEFAULT_HARDWARE_STATE = {"on": False}
 
     SUPPORTED_CLIENTS = ['hardware', 'client']
@@ -18,7 +19,8 @@ class ServerHandler:
         self._client_connections = set()
 
     def _log(self, msg):
-        print(f"{self.LOG_PREFIX} {msg}")
+        timestamp = datetime.datetime.now().isoformat()
+        print(f"{self.LOG_PREFIX} [{timestamp}] {msg}")
 
     async def handle(self, websocket: ServerConnection):
         # wait for initialization message from connection
