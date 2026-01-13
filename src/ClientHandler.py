@@ -8,16 +8,14 @@ from board import Board
 
 class ClientHandler:
     LOG_PREFIX = 'led-sockets-handler'
-    _state = {
-        "on": False,
-        "message": ""
-    }
-    # Either None or a ClientManager
-    _parent = None
 
     def __init__(self, board):
         self._board = board
         self._parent = None
+        self._state = {
+            "on": False,
+            "message": ""
+        }
         # @todo: since this is initialized outside of any asyncio loop, the handler needs to
         #  start its own.  This results in a secondary asyncio loop that runs for the listener.
         #  Time will tell if this is a problem, but it smells off
@@ -53,9 +51,10 @@ class ClientHandler:
     async def on_message(self, message, websocket):
         try:
             payload = json.loads(message)
-        except:
+        except json.JSONDecodeError:
             self._log('ignoring non-JSON message')
             return
+        # @todo: more refined payload validation/checking/exception handling
         if payload['type'] == 'patch_hardware_state':
             if (payload['attributes']['on']):
                 self._state['on'] = True
