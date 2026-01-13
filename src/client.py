@@ -1,12 +1,14 @@
-import os
 import asyncio
-import signal
-from websockets import ClientConnection
-from board import Board
-from dotenv import load_dotenv
-from websockets.asyncio.client import connect
 import json
+import os
+import signal
 from functools import partial
+
+from dotenv import load_dotenv
+from websockets import ClientConnection
+from websockets.asyncio.client import connect
+
+from board import Board
 
 load_dotenv()
 
@@ -20,10 +22,16 @@ state = {
 
 async def process_message(message, board, websocket):
     global state
-    print(f"led-sockets client: received message {message}")
-    payload = json.loads(message)
-    assert payload['type'] == 'change_state'
-    if (payload['data']['is_on']):
+    print(f"led-sockets client: received message: {message}")
+    # @todo: more refined handling
+    try:
+        payload = json.loads(message)
+    except:
+        return
+    if payload['type'] != 'patch_hardware_state':
+        return
+
+    if (payload['attributes']['on']):
         state['on'] = True
         state['message'] = "The light and buzzer are on.  If I'm around it's annoying me."
         board.set_blue(True)
@@ -37,7 +45,7 @@ async def process_message(message, board, websocket):
     payload = {
         "type": 'hardware_state',
         "id": '1',
-        "data": state
+        "attributes": state
     }
     await websocket.send(json.dumps(payload))
 
@@ -66,14 +74,20 @@ def init_board(websocket: ClientConnection):
 
 async def init_connection(websocket: ClientConnection):
     print("led-sockets client: initializing connection...")
-    await websocket.send(json.dumps({
-        "type": "init",
-        "id": "",
-        "data": {
-            "entity_type": 'hardware',
-            "hardware_state": state
-        },
-    }))
+
+    payload = {
+        "type": "init_hardware",
+        "relationships": {
+            "hardware_state": {
+                "data": {
+                    "type": "hardware_state",
+                    "attributes": state
+                }
+            }
+        }
+    }
+
+    await websocket.send(json.dumps(payload))
 
 
 async def init(websocket: ClientConnection):

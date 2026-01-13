@@ -1,41 +1,57 @@
+/* TODO:
+- [ ] Disable checkbox/button when disconnected
+- [ ] proper type narrowing
+- [ ] add ids to json:api objects across full suite
+*/
 const {
+
   VITE_WEB_SOCKET_URL,
   VITE_PRODUCTION_WEB_SOCKET_URL,
   PROD,
 } = import.meta.env;
 
-type SocketMessage = {
+interface SocketMessage {
   type: string;
-  id: string;
+  attributes?: Object;
 }
-type HardwareState = {
-  type: 'hardware_state'
-  id: string,
-  data: {
-    on: boolean
-    message: string
+
+type HardwareStateAttributes = {
+  on: boolean;
+  message: string;
+}
+
+interface HardwareStateMessage extends SocketMessage {
+  type: 'hardware_state',
+  attributes: HardwareStateAttributes
+}
+
+interface HardwareConnectionMessage extends SocketMessage {
+  type: 'hardware_connection',
+  attributes: {
+    is_connected: boolean
+  }
+  relationships: {
+    hardware_state: {
+      data: HardwareStateMessage
+    }
   }
 }
 
-type ChangeStatePayload = SocketMessage & {
-  type: 'change_state'
-  data: {
-    is_on: boolean
-  }
-}
-type ClientConnectionInitMessage = SocketMessage & {
-  type: 'client_connection_init'
-  data: {
+interface ClientConnectionInitMessage extends SocketMessage {
+  type: 'client_init',
+  attributes: {
     hardware_is_connected: boolean
-    hardware_state: HardwareState['data']
+  }
+  relationships: {
+    hardware_state: {
+      data: HardwareStateMessage
+    }
   }
 }
-type HardwareConnectionMessage = SocketMessage & {
-  type: 'hardware_connection'
-  data: {
-    is_connected: boolean
-    state: HardwareState['data']
-  }
+
+interface PatchHardwareState extends SocketMessage {
+  type: 'patch_hardware_state';
+  attributes: Partial<HardwareStateAttributes>;
 }
 
 export default class LedSockets {
@@ -82,59 +98,58 @@ export default class LedSockets {
   private _addUiListeners() {
     this.button.addEventListener('click', () => {
       let is_on = !this.state.status;
-      const payload: ChangeStatePayload = {
-        data: { is_on: is_on },
-        id: '',
-        type: 'change_state',
+      const payload: PatchHardwareState = {
+        type: 'patch_hardware_state',
+        attributes: { on: is_on },
       };
       this.websocket.send(JSON.stringify(payload));
     });
   }
 
-  private onSocketClose() {
+  private onSocketClose(e: CloseEvent) {
+    console.error("Socket Closed"+e.reason);
     this.updateHardwareStatus(false);
     this.updateSocketStatus('Closed');
   }
 
-  private onSocketError() {
-    console.log('Service: socket error event');
+  private onSocketError(e: Event) {
+    console.error("Socket Error",e);
     this.updateHardwareStatus(false);
     this.updateSocketStatus('Error');
   }
 
   private onSocketMessage(event: MessageEvent) {
     const { data } = event;
-    console.log(`Service: Message received:${data}`);
     const message: unknown = JSON.parse(data);
+    // @todo: proper narrowing
     if (message && typeof message === 'object' && 'type' in message && message.type) {
       let messageC = message as SocketMessage;
-      if (messageC.type === 'hardware_connection') {
-        const payload = message as HardwareConnectionMessage;
-        this.updateState(payload.data.state.on);
-        this.updateHardwareStatus(payload.data.is_connected);
-      }
-      if (messageC.type === 'client_connection_init') {
-        const payload = message as ClientConnectionInitMessage;
-        this.updateState(payload.data.hardware_state.on, payload.data.hardware_state.message);
-        this.updateHardwareStatus(payload.data.hardware_is_connected);
-      }
-      if (messageC.type === 'hardware_state') {
-        const payload = message as HardwareState;
-        this.updateState(payload.data.on, payload.data.message);
+      let payload;
+      switch (messageC.type) {
+        case 'hardware_state':
+          payload = message as HardwareStateMessage;
+          this.updateState(payload.attributes.on, payload.attributes.message);
+          break;
+        case 'hardware_connection':
+          payload = message as HardwareConnectionMessage;
+          this.updateState(payload.relationships.hardware_state.data.attributes.on);
+          this.updateHardwareStatus(payload.attributes.is_connected);
+          break;
+        case 'client_init':
+          payload = message as ClientConnectionInitMessage;
+          this.updateState(payload.relationships.hardware_state.data.attributes.on, payload.relationships.hardware_state.data.attributes.message);
+          this.updateHardwareStatus(payload.attributes.hardware_is_connected);
+          break;
       }
     }
   }
 
   private onSocketOpen() {
-    console.log('Service: socket open event');
     this.updateSocketStatus('Open');
     this.websocket.send(
       JSON.stringify({
         id: '',
-        type: 'init',
-        data: {
-          entity_type: 'client',
-        },
+        type: 'init_client',
       }),
     );
   }

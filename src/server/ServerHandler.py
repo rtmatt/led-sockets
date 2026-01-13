@@ -23,12 +23,24 @@ class ServerHandler:
     async def handle(self, websocket: ServerConnection):
         # wait for initialization message from connection
         init_message = await websocket.recv()
+        self._log(f'Init message received: {init_message}')
 
         # @todo: try catch (json parse, not init, entity type invalid/absent
-        payload = json.loads(init_message)
+
+        # verify valid json provided
+        try:
+            payload = json.loads(init_message)
+        except:
+            self._log('Malformed init payload')
+            await websocket.close(1003, "Malformed init payload")
+            return
+
         # verify the payload represents an init event
         payload_type = payload['type']
         is_init = payload_type in ['init_client', 'init_hardware']
+        if not payload_type or not is_init:
+            await websocket.close(1003, "Invalid init type")
+            return
 
         # route initialization based on entity type
         if payload_type == 'init_hardware':
@@ -83,6 +95,16 @@ class ServerHandler:
         # send subsequent messages to clients.  fall through hardware init forwards message to clients
         async for message in websocket:
             self._log(f'Hardware message: {message}')
+            # if the message is a state update notice from hardware, update the local state to match
+            # clients are notified via fallthrough;
+            # @todo: refine this block and logic
+            try:
+                payload = json.loads(message)
+                if payload['type'] == 'hardware_state':
+                    self._hardware_state = payload['attributes']
+                    self._log(f"Hardware state updated: {self._hardware_state}")
+            except Exception as e:
+                raise e
             # forward all messages to all clients
             self._log(f'sending hardware message to {len(self._client_connections)} clients')
             tasks = [client.send(message) for client in list(self._client_connections)]

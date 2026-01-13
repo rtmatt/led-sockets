@@ -1,0 +1,41 @@
+---
+type: hardware_state
+attributes:
+  on: false
+  message: ""
+---
+type: hardware_connection
+attributes:
+  is_connected: true
+relationships:
+  hardware_state:
+    data:
+      type: hardware_state
+      attributes:
+        on: true
+        message: ""
+---
+type: init_hardware
+relationships:
+  hardware_state:
+    data:
+      type: hardware_state
+      attributes:
+        on: true
+        message: ""
+---
+type: init_client
+---
+type: client_init
+attributes:
+  hardware_is_connected: true
+relationships:
+  hardware_state:
+    data:
+      type: hardware_state
+      attributes:
+        on: true
+        message: ""
+---
+type: patch_hardware_state
+attributes: Partial<hardware_state.attributes>

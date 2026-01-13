@@ -58,6 +58,8 @@ class ServerManager:
             pass
         except Exception as e:
             self._log(f"Error handling connection fom {websocket.remote_address}: {e}")
+            # @todo:
+            # raise e
         self._record_disconnect(websocket)
 
     async def _disconnect_all(self):
