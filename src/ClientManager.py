@@ -3,7 +3,6 @@ import datetime
 import json
 import os
 import signal
-from typing import Union
 
 from dotenv import load_dotenv
 from websockets.asyncio.client import connect, ClientConnection
@@ -17,7 +16,7 @@ from ClientHandler import ClientHandler
 class ClientManager:
     LOG_PREFIX = 'led-sockets-client'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
-    _connection: Union[None | ClientConnection]
+    _connection: None | ClientConnection
     _host_url: str
 
     def __init__(self, host_url, handler):
@@ -90,6 +89,7 @@ class ClientManager:
         """
         Build the websocket connection and queue initialization/listening
         @todo: refine exception handling if warranted
+        @todo: wrap logic with while loop with a asyncio.sleep() to retry in the case network is lost
         """
         try:
             self._log('Establishing connection')
@@ -129,8 +129,11 @@ class ClientManager:
         asyncio.run(self._start_server())
 
     async def send_message(self,message):
-        self._log(f"Sending message: {message}")
-        await self._connection.send(message)
+        if self._connection:
+            self._log(f"Sending message: {message}")
+            await self._connection.send(message)
+        else:
+            self._log("Failed to send message: No active connection")
 
 
 if __name__ == '__main__':
