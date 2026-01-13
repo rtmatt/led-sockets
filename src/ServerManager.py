@@ -16,7 +16,7 @@ class ServerManager:
     offloads business logic to its handler
     """
     LOG_PREFIX = 'led-sockets-server'
-    SHUTDOWN_PAYLOAD = 'Server shutting down'
+    SHUTDOWN_PAYLOAD = 'BYE FOREVER!'
     CLOSE_CODE = 1001
 
     def __init__(self, host: str, port: int, handler):
