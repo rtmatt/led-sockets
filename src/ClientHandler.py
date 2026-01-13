@@ -67,7 +67,7 @@ class ClientHandler:
                 self._board.set_blue(False)
                 self._board.buzz(False)
 
-        await websocket.send(json.dumps(self.get_state()))
+            await websocket.send(json.dumps(self.get_state()))
 
     def get_state(self):
         return {
