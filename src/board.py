@@ -29,7 +29,7 @@ class Board:
 
     def add_button_release_handler(self, handler):
         print('led-sockets board: adding button release handler')
-        self.button_press_handlers.append(handler)
+        self.button_release_handlers.append(handler)
 
     def status_on(self):
         self.set_green(True)
