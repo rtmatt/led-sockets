@@ -13,9 +13,9 @@ class ServerHandler:
     SOCKET_CODE_POLICY_ERROR = 1008
 
     def __init__(self):
+        self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
         self._hardware_connection = None
         self._client_connections = set()
-        self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
 
     def _log(self, msg):
         print(f"{self.LOG_PREFIX} {msg}")

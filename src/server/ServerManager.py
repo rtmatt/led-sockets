@@ -87,6 +87,10 @@ class ServerManager:
         self._log("K byeeeeeeeeeeeeeeeeeee")
 
     async def _start_server(self):
+        """
+        Coordinate application lifecycle
+        Register signal handlers to support graceful shutdowns
+        """
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, partial(self._trigger_shutdown, sig))
