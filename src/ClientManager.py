@@ -8,6 +8,8 @@ from typing import Union
 from dotenv import load_dotenv
 from websockets.asyncio.client import connect, ClientConnection
 
+from ClientHandler import ClientHandler
+
 
 # # @TODO:
 # # -  [ ] A "reset" button on the board would be neat; resets state and reconnects to server
@@ -18,8 +20,9 @@ class ClientManager:
     _connection: Union[None | ClientConnection]
     _host_url: str
 
-    def __init__(self, host_url):
+    def __init__(self, host_url, handler):
         self._host_url = host_url
+        self._handler = handler
         self._connection = None
         self._tasks = []
 
@@ -35,11 +38,13 @@ class ClientManager:
         if self._connection:
             async for message in self._connection:
                 self._log(f'Server says: {message}  {self._connection.remote_address}')
+                await self._handler.on_message(message, self._connection)
         else:
             raise Exception('Listen called without connection')
 
     async def handle_connection_closed(self):
         self._log('Server connection closed')
+        self._handler.on_connection_closed()
 
     async def _initialize_connection(self):
         """
@@ -60,31 +65,7 @@ class ClientManager:
         await self._connection.send(json.dumps(payload))
 
     def _get_hardware_state(self):
-        return {
-            "type": "hardware_state",
-            "attributes": {
-                "on": False  # @todo: get state from board
-            }
-        }
-
-    async def _build_connection(self):
-        """
-        Build the websocket connection and queue initialization/listening
-        """
-        try:
-            self._log('Establishing connection')
-            async with connect(self._host_url) as websocket:
-                self._log('Connected')
-                self._connection = websocket
-                await self._initialize_connection()
-                await self._listen()
-                await self.handle_connection_closed()
-        except OSError as e:
-            self._log(f"Connection failed: {e}")
-        except asyncio.CancelledError:
-            pass
-        finally:
-            self._connection = None
+        return self._handler.get_state()
 
     async def _shutdown(self, sig):
         """
@@ -100,8 +81,31 @@ class ClientManager:
             await self._connection.close()
         for task in self._tasks:
             task.cancel()
+
         # @todo should not need to gather since it's already done in start_server
         # await asyncio.gather(*self._tasks, return_exceptions=True)
+
+    async def _build_connection(self):
+        """
+        Build the websocket connection and queue initialization/listening
+        """
+        try:
+            self._log('Establishing connection')
+            async with connect(self._host_url) as websocket:
+                self._log('Connected')
+                self._handler.on_connected()
+                self._connection = websocket
+                await self._initialize_connection()
+                self._handler.on_initialized()
+                await self._listen()
+                await self.handle_connection_closed()
+        # @todo: handler error handling of these cases?
+        except OSError as e:
+            self._log(f"Connection failed: {e}")
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._connection = None
 
     async def _start_server(self):
         """
@@ -127,7 +131,8 @@ class ClientManager:
 if __name__ == '__main__':
     load_dotenv()
     server = ClientManager(
-        "ws://raspberrypi.local:8765"  # os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765')
+        handler=ClientHandler.createMocked(),
+        host_url="ws://raspberrypi.local:8765"  # os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765')
         # host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
         # port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
         # handler=ServerHandler()
