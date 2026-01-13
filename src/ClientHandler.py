@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 
@@ -11,9 +12,23 @@ class ClientHandler:
         "on": False,
         "message": ""
     }
+    # Either None or a ClientManager
+    _parent = None
 
     def __init__(self, board):
         self._board = board
+        self._parent = None
+        # @todo: since this is initialized outside of any asyncio loop, the handler needs to
+        #  start its own.  This results in a secondary asyncio loop that runs for the listener.
+        #  Time will tell if this is a problem, but it smells off
+        board.add_button_press_handler(self.on_button_press)
+
+    def setParent(self, parent):
+        # @todo: introducing an interface would be better, but this is good enough for now
+        if callable(getattr(parent, 'send_message', None)):
+            self._parent = parent
+        else:
+            raise Exception('Invalid parent')
 
     def _log(self, msg):
         timestamp = datetime.datetime.now().isoformat()
@@ -64,3 +79,17 @@ class ClientHandler:
     def on_connection_closed(self):
         self._board.status_disconnected()
         pass
+
+    async def _on_button_press(self, button):
+        self._log("Button press received")
+        if (self._state['on']):
+            self._board.buzz(False)
+            self._state['on'] = False
+            self._state['message'] = "I turned it off"
+            if (self._parent):
+                await self._parent.send_message(json.dumps(self.get_state()))
+        else:
+            self._log("State is off; doing nothing")
+
+    def on_button_press(self, button):
+        asyncio.run(self._on_button_press(button))

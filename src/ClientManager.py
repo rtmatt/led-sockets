@@ -23,6 +23,7 @@ class ClientManager:
     def __init__(self, host_url, handler):
         self._host_url = host_url
         self._handler = handler
+        handler.setParent(self)
         self._connection = None
         self._tasks = []
 
@@ -88,6 +89,7 @@ class ClientManager:
     async def _build_connection(self):
         """
         Build the websocket connection and queue initialization/listening
+        @todo: refine exception handling if warranted
         """
         try:
             self._log('Establishing connection')
@@ -99,7 +101,6 @@ class ClientManager:
                 self._handler.on_initialized()
                 await self._listen()
                 await self.handle_connection_closed()
-        # @todo: handler error handling of these cases?
         except OSError as e:
             self._log(f"Connection failed: {e}")
         except asyncio.CancelledError:
@@ -127,14 +128,16 @@ class ClientManager:
         self._log(f"Starting (pid {os.getpid()})")
         asyncio.run(self._start_server())
 
+    async def send_message(self,message):
+        self._log(f"Sending message: {message}")
+        await self._connection.send(message)
+
 
 if __name__ == '__main__':
     load_dotenv()
     server = ClientManager(
+        # host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
+        host_url="ws://raspberrypi.local:8765",
         handler=ClientHandler.createMocked(),
-        host_url="ws://raspberrypi.local:8765"  # os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765')
-        # host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
-        # port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
-        # handler=ServerHandler()
     )
     server.serve()
