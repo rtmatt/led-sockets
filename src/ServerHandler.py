@@ -44,7 +44,11 @@ class ServerHandler:
 
         # route initialization based on entity type
         if payload_type == 'init_hardware':
-            await self._init_hardware(websocket, init_message)
+            try:
+                await self._init_hardware(websocket, init_message)
+            finally:
+                self._hardware_connection = None
+
         elif payload_type == 'init_client':
             await self._init_client(websocket, init_message)
 
@@ -54,6 +58,7 @@ class ServerHandler:
         # prevent hardware connections beyond initial one
         if (self._hardware_connection is not None):
             self._log('hardware already connected; aborting')
+            await websocket.send('Hardware already connected.  Goodbye.')
             raise Exception('hardware already connected')
 
         # @todo: try catch (json parse, not init, entity type invalid/absent
@@ -94,12 +99,18 @@ class ServerHandler:
 
         # send subsequent messages to clients.  fall through hardware init forwards message to clients
         async for message in websocket:
-            self._log(f'Hardware message: {message}')
+            self._log(f'Hardware says: {message}')
             # if the message is a state update notice from hardware, update the local state to match
             # clients are notified via fallthrough;
-            # @todo: refine this block and logic
+            # @todo: refine this blocks and logic
             try:
                 payload = json.loads(message)
+            except Exception:
+                # self._log(f'Ignoring non-json message')
+                continue
+
+            # @todo: refine this block and logic
+            try:
                 if payload['type'] == 'hardware_state':
                     self._hardware_state = payload['attributes']
                     self._log(f"Hardware state updated: {self._hardware_state}")
@@ -136,7 +147,7 @@ class ServerHandler:
         disconnect_tasks = [client.send(json.dumps(payload)) for client in self._client_connections]
         # wait for client messages to complete sending
         result = await asyncio.gather(*disconnect_tasks, return_exceptions=True)
-        print(result)
+        # print(result)
 
     async def _init_client(self, websocket: ServerConnection, init_message):
         self._log(f'Initializing client from {websocket.remote_address}')
