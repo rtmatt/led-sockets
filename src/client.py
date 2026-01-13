@@ -11,6 +11,7 @@ from websockets.asyncio.client import connect
 from board import Board
 from MockBoard import MockBoard
 from ClientManager import ClientManager
+from ClientHandler import ClientHandler
 
 load_dotenv()
 
@@ -134,11 +135,16 @@ async def main():
 
 if __name__ == "__main__":
     load_dotenv()
+    server  = ClientManager(
+        host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
+        handler = ClientHandler.create()
+    )
+    server.serve()
     # server = ClientManager(
     #     # host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
     #     # port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
     #     # handler=ServerHandler()
     # )
     # server.serve()
-    print(f"led-sockets client: starting pid {os.getpid()}")
-    asyncio.run(main())
+    # print(f"led-sockets client: starting pid {os.getpid()}")
+    # asyncio.run(main())

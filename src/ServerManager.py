@@ -79,7 +79,6 @@ class ServerManager:
         self._stop_event.set()
 
     async def _run_server(self):
-        self._log(f"Starting on {self.address} (pid {os.getpid()})")
         async with serve(self._handle_connection, self._host, self._port):
             await self._stop_event.wait()
             await self._stop_server()
@@ -100,6 +99,7 @@ class ServerManager:
         await self._run_server()
 
     def serve(self):
+        self._log(f"Starting on {self.address} (pid {os.getpid()})")
         asyncio.run(self._start_server())
 
 
