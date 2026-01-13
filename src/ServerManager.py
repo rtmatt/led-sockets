@@ -47,8 +47,10 @@ class ServerManager:
         if websocket.close_code is not None:
             return
         try:
-            await websocket.send(self.SHUTDOWN_PAYLOAD)
-            await websocket.close(self.CLOSE_CODE)
+             # Add a timeout so a single slow client doesn't hang the whole shutdown
+            async with asyncio.timeout(2.0):
+                await websocket.send(self.SHUTDOWN_PAYLOAD)
+                await websocket.close(self.CLOSE_CODE)
         except Exception:
             pass
 
@@ -62,7 +64,8 @@ class ServerManager:
             self._log(f"Error handling connection fom {websocket.remote_address}: {e}")
             # @todo:
             # raise e
-        self._record_disconnect(websocket)
+        finally:
+            self._record_disconnect(websocket)
 
     async def _disconnect_all(self):
         if self._connections:

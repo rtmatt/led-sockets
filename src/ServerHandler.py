@@ -4,7 +4,8 @@ import json
 from websockets.asyncio.server import ServerConnection
 import datetime
 
-
+# TODO:
+# - [ ] Pass to extract single-use methods
 class ServerHandler:
     LOG_PREFIX = 'led-sockets-server'
     DEFAULT_HARDWARE_STATE = {"on": False}
