@@ -82,7 +82,7 @@ class ServerManager:
 
     async def _stop_server(self):
         await self._disconnect_all()
-        self._log("G'bye now!")
+        self._log("K byeeeeeeeeeeeeeeeeeee")
 
     async def _start_server(self):
         loop = asyncio.get_running_loop()
