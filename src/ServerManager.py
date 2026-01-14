@@ -84,10 +84,10 @@ class ServerManager:
     async def _run_server(self):
         async with serve(self._handle_connection, self._host, self._port) as server:
             await self._stop_event.wait()
-            await self._stop_server(server)
+            await self._stop_server()
         self._log("K byeeeeeeeeeeeeeeeeeee")
 
-    async def _stop_server(self, server):
+    async def _stop_server(self):
         await self._disconnect_all()
 
     async def serve(self):
