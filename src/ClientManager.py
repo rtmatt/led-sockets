@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from websockets.asyncio.client import connect, ClientConnection
 
 from ClientHandler import ClientHandler
+from board import Board
 
 
 # # @TODO:
@@ -137,8 +138,11 @@ async def main():
     server = ClientManager(
         host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
         # host_url="ws://raspberrypi.local:8765",
-        # handler=ClientHandler.createMocked(),
-        handler=ClientHandler.create(),
+        handler=ClientHandler(
+            board=Board(),
+            # board=MockBoard(),
+            loop=asyncio.get_running_loop()
+        ),
     )
     await server.serve()
 
