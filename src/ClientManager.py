@@ -17,15 +17,13 @@ from board import Board
 class ClientManager:
     LOG_PREFIX = 'led-sockets-client'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
-    _connection: None | ClientConnection
-    _host_url: str
 
     def __init__(self, host_url, handler):
-        self._host_url = host_url
+        self._host_url: str = host_url
         self._handler = handler
-        handler.setParent(self)
-        self._connection = None
+        self._connection: None | ClientConnection = None
         self._tasks = []
+        self._handler.setParent(self)
 
     def _log(self, msg):
         timestamp = datetime.datetime.now().isoformat()
@@ -134,7 +132,6 @@ class ClientManager:
 
 
 async def main():
-    load_dotenv()
     server = ClientManager(
         host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
         # host_url="ws://raspberrypi.local:8765",
@@ -148,4 +145,5 @@ async def main():
 
 
 if __name__ == '__main__':
+    load_dotenv()
     asyncio.run(main())

@@ -9,16 +9,16 @@ class ClientHandler:
 
     def __init__(self, board, loop):
         self._board = board
+        self._loop: AbstractEventLoop = loop
         self._parent = None
         self._state = {
             "on": False,
             "message": ""
         }
-        self._loop: AbstractEventLoop = loop
         board.add_button_press_handler(self.on_button_press)
 
     def setParent(self, parent):
-        # @todo: introducing an interface would be better, but this is good enough for now
+        # @todo: introducing an interface (ABC) would be better, but this is good enough for now
         if callable(getattr(parent, 'send_message', None)):
             self._parent = parent
         else:
@@ -56,8 +56,8 @@ class ClientHandler:
                     self._board.set_blue(False)
                     self._board.buzz(False)
                 await websocket.send(json.dumps(self.get_state()))
-            # If there are any key errors, just ignore the message
             except KeyError:
+                # If there are any key errors, just ignore the message
                 # @todo: In the Future, send a malformed json error to the single origin that this came from
                 # I'm not doing that now because at this time sending a message would send it to all clients
                 pass

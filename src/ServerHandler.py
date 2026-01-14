@@ -1,16 +1,15 @@
 import asyncio
+import datetime
 import json
 
 from websockets.asyncio.server import ServerConnection
-import datetime
+
 
 # TODO:
 # - [ ] Pass to extract single-use methods
 class ServerHandler:
     LOG_PREFIX = 'led-sockets-server'
     DEFAULT_HARDWARE_STATE = {"on": False}
-
-    SUPPORTED_CLIENTS = ['hardware', 'client']
     SOCKET_CODE_INVALID = 1003
     SOCKET_CODE_POLICY_ERROR = 1008
 
@@ -24,7 +23,6 @@ class ServerHandler:
         print(f"{self.LOG_PREFIX} [{timestamp}] {msg}")
 
     async def handle(self, websocket: ServerConnection):
-        # wait for initialization message from connection
         init_message = await websocket.recv()
         self._log(f'Init message received: {init_message}')
 
