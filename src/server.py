@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from dotenv import load_dotenv
@@ -12,4 +13,4 @@ if __name__ == "__main__":
         port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
         handler=ServerHandler()
     )
-    server.serve()
+    asyncio.run(server.serve())

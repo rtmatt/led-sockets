@@ -91,20 +91,17 @@ class ServerManager:
 
         self._log("K byeeeeeeeeeeeeeeeeeee")
 
-    async def _start_server(self):
+    async def serve(self):
         """
         Coordinate application lifecycle
         Register signal handlers to support graceful shutdowns
         """
+        self._log(f"Starting on {self.address} (pid {os.getpid()})")
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, partial(self._trigger_shutdown, sig))
 
         await self._run_server()
-
-    def serve(self):
-        self._log(f"Starting on {self.address} (pid {os.getpid()})")
-        asyncio.run(self._start_server())
 
 
 class DummyHandler:
@@ -117,10 +114,11 @@ class DummyHandler:
 
 
 if __name__ == '__main__':
+    print('what!')
     load_dotenv()
     server = ServerManager(
         host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
         port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
         handler=ServerHandler()
     )
-    server.serve()
+    asyncio.run(server.serve())
