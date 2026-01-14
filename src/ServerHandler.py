@@ -31,7 +31,6 @@ class ClientMessageException(Exception):
 
 
 # TODO:
-# - [ ] Pass to extract single-use methods
 # - [ ] Pass simple messages as JSON
 class ServerHandler:
     LOG_PREFIX = 'led-sockets-server'
@@ -58,7 +57,6 @@ class ServerHandler:
         self._log(log_message)
 
     async def _handle_exception(self, e: Exception, websocket: ServerConnection):
-        # @todo: it might be worthwhile to segregate loop-based handlers
         match e:
             case InitPayloadInvalidException():
                 message = str(e)
@@ -261,7 +259,6 @@ class ServerHandler:
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} clients')
         payload = self.get_hardware_connection_payload()
         disconnect_tasks = [client.send(json.dumps(payload)) for client in self._client_connections]
-        # @todo: exception handling to be addressed later when/if it becomes prudent
         result = await asyncio.gather(*disconnect_tasks, return_exceptions=True)
         self._log(f'Hardware disconnect result: {result}')
 
