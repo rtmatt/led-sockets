@@ -5,157 +5,184 @@ import json
 from websockets.asyncio.server import ServerConnection
 
 
+class InvalidHardwareInitPayloadException(Exception):
+    """Exception raised when hardware init payload is invalid"""
+    pass
+
+
+class HardwareAlreadyConnectedException(Exception):
+    """Exception raised when hardware tries to connect with hardware already connected"""
+    pass
+
+
+class InitPayloadInvalidException(Exception):
+    """Exception raised when primary init payload is invalid"""
+    pass
+
+
+class HardwareMessageException(Exception):
+    """Exception raised when hardware message is invalid"""
+    pass
+
+
+class ClientMessageException(Exception):
+    """Exception raised when client message is invalid"""
+    pass
+
+
 # TODO:
 # - [ ] Pass to extract single-use methods
+# - [ ] Pass simple messages as JSON
 class ServerHandler:
     LOG_PREFIX = 'led-sockets-server'
     DEFAULT_HARDWARE_STATE = {"on": False}
-    SOCKET_CODE_INVALID = 1003
-    SOCKET_CODE_POLICY_ERROR = 1008
 
     def __init__(self):
         self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
         self._hardware_connection = None
+        # @todo: objectify this: make entries contain more info than just the raw connection ({}[websocket.id]={connection:websocket}})
         self._client_connections = set()
+
+    @property
+    def is_hardware_connected(self):
+        return self._hardware_connection is not None
 
     def _log(self, msg):
         timestamp = datetime.datetime.now().isoformat()
         print(f"{self.LOG_PREFIX} [{timestamp}] {msg}")
 
-    async def handle(self, websocket: ServerConnection):
+    def _log_exception(self, e: Exception, leading_message=''):
+        log_message = leading_message if leading_message else str(e)
+        if e.__cause__:
+            log_message = f"{log_message} -- {e.__cause__.__class__.__name__}: {e.__cause__}"
+        self._log(log_message)
+
+    async def _handle_exception(self, e: Exception, websocket: ServerConnection):
+        # @todo: it might be worthwhile to segregate loop-based handlers
+        match e:
+            case InitPayloadInvalidException():
+                message = str(e)
+                self._log_exception(e)
+                await websocket.send(message)
+            case HardwareAlreadyConnectedException():
+                self._log('Hardware already connected; aborting connection')
+                await websocket.send("Hardware already connected.  Buh bye now.")
+            case InvalidHardwareInitPayloadException():
+                message = f'Hardware Init Error: {e}'
+                self._log_exception(e, message)
+                await websocket.send(message)
+            case HardwareMessageException():
+                self._log_exception(e, f"Ignoring invalid message: {e}")
+                await websocket.send(f"Message had no effect ({e})")
+            case ClientMessageException():
+                self._log_exception(e, f"Ignoring invalid message: {e}")
+                await websocket.send(f"Message had no effect ({e})")
+            case _:
+                raise e
+
+    async def handle(self, websocket):
+        try:
+            await self._handle(websocket)
+        except Exception as e:
+            await self._handle_exception(e, websocket)
+
+    async def _handle(self, websocket: ServerConnection):
         init_message = await websocket.recv()
         self._log(f'Init message received: {init_message}')
-
-        # @todo: try catch (json parse, not init, entity type invalid/absent
-
-        # verify valid json provided
         try:
             payload = json.loads(init_message)
-        except:
-            self._log('Malformed init payload')
-            await websocket.close(1003, "Malformed init payload")
-            return
-
-        # verify the payload represents an init event
-        payload_type = payload['type']
-        is_init = payload_type in ['init_client', 'init_hardware']
-        if not payload_type or not is_init:
-            await websocket.close(1003, "Invalid init type")
-            return
+            payload_type = payload['type']
+            if payload_type not in ['init_client', 'init_hardware']:
+                raise InitPayloadInvalidException(f'Invalid initialization type "{payload_type}"')
+        except json.JSONDecodeError as e:
+            raise InitPayloadInvalidException(f'Malformed initialization payload') from e
+        except KeyError as e:
+            raise InitPayloadInvalidException(f'Missing initialization payload key: {e}') from e
 
         # route initialization based on entity type
         if payload_type == 'init_hardware':
             try:
-                await self._init_hardware(websocket, init_message)
+                await self._run_hardware_connection(websocket, init_message)
             finally:
-                self._hardware_connection = None
-
+                # Clean up hardware connection here in case _run_hardware_connection dies by exception
+                await self._handle_hardware_disconnect()
         elif payload_type == 'init_client':
-            await self._init_client(websocket, init_message)
+            try:
+                await self._run_client_connection(websocket)
+            finally:
+                # @ todo: the websocket param's gonna be an issue if client expends during init
+                self._handle_client_disconnect(websocket)
 
-    async def _init_hardware(self, websocket: ServerConnection, init_message):
+    async def _run_hardware_connection(self, websocket: ServerConnection, init_message):
+        if self.is_hardware_connected:
+            raise HardwareAlreadyConnectedException()
+        hardware = self._record_hardware_connection(websocket, init_message)
+
+        await self._init_hardware_connection(hardware)
+
+        connection = hardware
+        async for message in connection:
+            try:
+                await self._handle_hardware_message(message)
+            except Exception as e:
+                await self._handle_exception(e, connection)
+
+    async def _run_client_connection(self, websocket: ServerConnection):
+        client = self._record_client_connection(websocket)
+
+        await self._init_client_connection(client)
+
+        connection = client
+        async for message in connection:
+            try:
+                await self._handle_client_message(message)
+            except Exception as e:
+                await self._handle_exception(e, connection)
+
+    def _record_hardware_connection(self, websocket: ServerConnection, init_message):
         self._log(f'Initializing hardware from {websocket.remote_address}')
+        # @todo Future: create more robust hardware type
+        hardware = websocket
+        try:
+            payload = json.loads(init_message)
+            payload_type = payload['type']
+            is_init = payload_type == 'init_hardware'
+            if not is_init:
+                raise InvalidHardwareInitPayloadException(f'Invalid event type "{payload_type}"')
+            state = payload['relationships']['hardware_state']['data']['attributes']
+            if not state:
+                raise InvalidHardwareInitPayloadException('"hardware_state" data missing/invalid')
+        except KeyError as e:
+            raise InvalidHardwareInitPayloadException(f'Payload missing key: {e}') from e
+        except json.JSONDecodeError as e:
+            raise InvalidHardwareInitPayloadException('Malformed initialization payload') from e
 
-        # prevent hardware connections beyond initial one
-        if (self._hardware_connection is not None):
-            self._log('hardware already connected; aborting')
-            await websocket.send('Hardware already connected.  Goodbye.')
-            raise Exception('hardware already connected')
-
-        # @todo: try catch (json parse, not init, entity type invalid/absent
-        # and ensure provided data is valid before proceeding
-        payload = json.loads(init_message)
-        # verify the payload represents an init event
-        payload_type = payload['type']
-        is_init = payload_type == 'init_hardware'
-        state = payload['relationships']['hardware_state']['data']['attributes']
-
-        # store the hardware connection
-        self._hardware_connection = websocket
-        # set hardware state from init payload info
+        self._hardware_connection = hardware
         self._hardware_state = state
 
-        # confirm init; @todo: don't need to await this for any reason, really
-        await websocket.send("Hello, hardware")
+        return hardware
 
-        # payload for client notice of hardware connection
-        payload = {
-            "type": "hardware_connection",
-            "attributes": {
-                "is_connected": self._hardware_connection is not None  # true
-            },
-            "relationships": {
-                "hardware_state": {
-                    "data": {
-                        "type": "hardware_state",
-                        "attributes": self._hardware_state
-                    }
-                }
-            }
-        }
-
-        # let all connected clients know hardware has connected
-        tasks = [client.send(json.dumps(payload)) for client in list(self._client_connections)]
-        await asyncio.gather(*tasks, return_exceptions=True)
-
-        # send subsequent messages to clients.  fall through hardware init forwards message to clients
-        async for message in websocket:
-            self._log(f'Hardware says: {message}')
-            # if the message is a state update notice from hardware, update the local state to match
-            # clients are notified via fallthrough;
-            # @todo: refine this blocks and logic
-            try:
-                payload = json.loads(message)
-            except Exception:
-                # self._log(f'Ignoring non-json message')
-                continue
-
-            # @todo: refine this block and logic
-            try:
-                if payload['type'] == 'hardware_state':
-                    self._hardware_state = payload['attributes']
-                    self._log(f"Hardware state updated: {self._hardware_state}")
-            except Exception as e:
-                raise e
-            # forward all messages to all clients
-            self._log(f'sending hardware message to {len(self._client_connections)} clients')
-            tasks = [client.send(message) for client in list(self._client_connections)]
-            await asyncio.gather(*tasks, return_exceptions=True)
-
-        # hardware disconnected
-        self._log(f'Hardware disconnected')
-        # remove the stored the hardware connection
-        self._hardware_connection = None
-        # reset hardware state
-        self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
-
-        # payload for client notice of hardware disconnection
-        payload = {
-            "type": "hardware_connection",
-            "attributes": {
-                "is_connected": self._hardware_connection is not None  # false
-            },
-            "relationships": {
-                "hardware_state": {
-                    "data": {
-                        "type": "hardware_state",
-                        "attributes": self._hardware_state  # should be reset
-                    }
-                }
-            }
-        }
-        # compile async tasks to send disconnect to clients
-        disconnect_tasks = [client.send(json.dumps(payload)) for client in self._client_connections]
-        # wait for client messages to complete sending
-        result = await asyncio.gather(*disconnect_tasks, return_exceptions=True)
-        # print(result)
-
-    async def _init_client(self, websocket: ServerConnection, init_message):
+    def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}')
-        # store the connection
-        self._client_connections.add(websocket)
+        # @todo: Future: create more robust client type
+        client = websocket
+        self._client_connections.add(client)
+        return websocket
 
-        # payload to client confirming init and providing initial state
+    async def _init_hardware_connection(self, hardware):
+        connection = hardware
+
+        tasks = [connection.send("Hello, hardware")]
+
+        # notify all connected clients that hardware is connected/status
+        payload = self.get_hardware_connection_payload()
+        for client in list(self._client_connections):
+            tasks.append(client.send(json.dumps(payload)))
+
+        result = await asyncio.gather(*tasks, return_exceptions=True)
+        self._log(f'Hardware setup result: {result}')
+
+    async def _init_client_connection(self, client):
         payload = {
             "type": "client_init",
             "attributes": {
@@ -171,16 +198,79 @@ class ServerHandler:
                 }
             }
         }
-        # send state/status info to client for init (hardware connection status/state)
+        # Future-state in case client expands beyond websocket
+        websocket = client
         await websocket.send(json.dumps(payload))
-        # listen for messages from connection
-        async for message in websocket:
-            self._log(f'Client message: {message}')
-            # client messages only send to hardware connection
-            if self._hardware_connection:
-                await self._hardware_connection.send(message)
 
-        # client disconnected
+    async def _handle_hardware_message(self, message):
+        self._log(f'Hardware says: {message}')
+
+        try:
+            payload = json.loads(message)
+            type = payload['type']
+            attributes = payload['attributes']
+            if not type:
+                raise HardwareMessageException("No payload type provided")
+            if not attributes:
+                raise HardwareMessageException("No payload attributes provided")
+        except json.JSONDecodeError as e:
+            raise HardwareMessageException("Non-JSON payload") from e
+        except KeyError as e:
+            raise HardwareMessageException(f"Payload key error: {e}") from e
+
+        match type:
+            case 'hardware_state':
+                # This is trusting of the hardware client.  However, we trust them more than ourselves to know what their state looks like.  At least for now
+                self._hardware_state = attributes
+                self._log(f"Hardware state updated: {self._hardware_state}")
+            case _:
+                raise HardwareMessageException(f"Unrecognized message type: \"{type}\"")
+
+        # forward all messages to all clients
+        self._log(f'sending hardware message to {len(self._client_connections)} clients')
+        tasks = [client.send(message) for client in list(self._client_connections)]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _handle_client_message(self, message):
+        self._log(f'Client message: {message}')
+
+        try:
+            payload = json.loads(message)
+            type = payload['type']
+            if not type:
+                raise ClientMessageException("No payload type provided")
+        except json.JSONDecodeError as e:
+            raise ClientMessageException('Non-JSON payload') from e
+        except KeyError as e:
+            raise ClientMessageException(f"Payload key error: {e}") from e
+
+        match type:
+            case 'patch_hardware_state':
+                self._log('Passing message to hardware')
+                if self._hardware_connection:
+                    await self._hardware_connection.send(message)
+            case _:
+                raise ClientMessageException(f"Unrecognized message type: \"{type}\"")
+
+    async def _handle_hardware_disconnect(self):
+        self._log(f'Hardware disconnected')
+        self._hardware_connection = None
+        # @todo: consider null hardware states when hardware not connected...probs
+        self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
+
+        self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} clients')
+        payload = self.get_hardware_connection_payload()
+        disconnect_tasks = [client.send(json.dumps(payload)) for client in self._client_connections]
+        # @todo: exception handling to be addressed later when/if it becomes prudent
+        result = await asyncio.gather(*disconnect_tasks, return_exceptions=True)
+        self._log(f'Hardware disconnect result: {result}')
+
+    def _handle_client_disconnect(self, client):
         self._log(f'Client disconnected')
-        # remove from clients on disconnect
-        self._client_connections.discard(websocket)
+        self._client_connections.discard(client)
+
+    def get_hardware_connection_payload(self):
+        return {"type": "hardware_connection",
+                "attributes": {"is_connected": self._hardware_connection is not None
+                               }, "relationships": {
+                "hardware_state": {"data": {"type": "hardware_state", "attributes": self._hardware_state}}}}
