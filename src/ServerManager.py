@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import os
 import signal
 from functools import partial
@@ -7,8 +8,9 @@ from dotenv import load_dotenv
 from websockets.asyncio.server import ServerConnection
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
+
 from ServerHandler import ServerHandler
-import datetime
+
 
 class ServerManager:
     """
@@ -47,7 +49,7 @@ class ServerManager:
         if websocket.close_code is not None:
             return
         try:
-             # Add a timeout so a single slow client doesn't hang the whole shutdown
+            # Add a timeout so a single slow client doesn't hang the whole shutdown
             async with asyncio.timeout(2.0):
                 await websocket.send(self.SHUTDOWN_PAYLOAD)
                 await websocket.close(self.CLOSE_CODE)
@@ -61,9 +63,7 @@ class ServerManager:
         except (ConnectionClosedOK, ConnectionClosedError):
             pass
         except Exception as e:
-            self._log(f"Error handling connection fom {websocket.remote_address}: {e}")
-            # @todo:
-            # raise e
+            self._log(f"Exception unhandled by Handler: {e}")
         finally:
             self._record_disconnect(websocket)
 
@@ -82,12 +82,13 @@ class ServerManager:
         self._stop_event.set()
 
     async def _run_server(self):
-        async with serve(self._handle_connection, self._host, self._port):
+        async with serve(self._handle_connection, self._host, self._port) as server:
             await self._stop_event.wait()
-            await self._stop_server()
+            await self._stop_server(server)
 
-    async def _stop_server(self):
+    async def _stop_server(self, server):
         await self._disconnect_all()
+
         self._log("K byeeeeeeeeeeeeeeeeeee")
 
     async def _start_server(self):
