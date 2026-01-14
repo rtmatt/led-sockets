@@ -109,15 +109,6 @@ class ServerManager:
             self._log("Stopped")
 
 
-class DummyHandler:
-    def __init__(self):
-        pass
-
-    async def handle(self, websocket: ServerConnection):
-        async for message in websocket:
-            print(f"from handler: {message}")
-
-
 if __name__ == '__main__':
     load_dotenv()
     server = ServerManager(
