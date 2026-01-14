@@ -85,11 +85,10 @@ class ServerManager:
         async with serve(self._handle_connection, self._host, self._port) as server:
             await self._stop_event.wait()
             await self._stop_server(server)
+        self._log("K byeeeeeeeeeeeeeeeeeee")
 
     async def _stop_server(self, server):
         await self._disconnect_all()
-
-        self._log("K byeeeeeeeeeeeeeeeeeee")
 
     async def serve(self):
         """
@@ -98,10 +97,16 @@ class ServerManager:
         """
         self._log(f"Starting on {self.address} (pid {os.getpid()})")
         loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, partial(self._trigger_shutdown, sig))
+        signals = (signal.SIGINT, signal.SIGTERM)
 
-        await self._run_server()
+        for sig in signals:
+            loop.add_signal_handler(sig, partial(self._trigger_shutdown, sig))
+        try:
+            await self._run_server()
+        finally:
+            for sig in signals:
+                loop.remove_signal_handler(sig)
+            self._log("Stopped")
 
 
 class DummyHandler:
@@ -114,7 +119,6 @@ class DummyHandler:
 
 
 if __name__ == '__main__':
-    print('what!')
     load_dotenv()
     server = ServerManager(
         host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
