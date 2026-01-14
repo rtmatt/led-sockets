@@ -108,14 +108,14 @@ class ClientManager:
         finally:
             self._connection = None
 
-    async def _start_server(self):
+    async def serve(self):
         """
         Create task wrapper for calling connection creation method
         Allows process to terminate gracefully on SIGINT and SIGKILL
 
         Registers shutdown handler upon signal
         """
-        self._log(f"Setting up context")
+        self._log(f"Starting (pid {os.getpid()})")
         loop = asyncio.get_running_loop()
         self._tasks = [
             asyncio.create_task(self._build_connection())
@@ -124,11 +124,7 @@ class ClientManager:
             loop.add_signal_handler(sig, lambda sig=sig: asyncio.create_task(self._shutdown(sig)))
         await asyncio.gather(*self._tasks)
 
-    def serve(self):
-        self._log(f"Starting (pid {os.getpid()})")
-        asyncio.run(self._start_server())
-
-    async def send_message(self,message):
+    async def send_message(self, message):
         if self._connection:
             self._log(f"Sending message: {message}")
             await self._connection.send(message)
@@ -136,11 +132,16 @@ class ClientManager:
             self._log("Failed to send message: No active connection")
 
 
-if __name__ == '__main__':
+async def main():
     load_dotenv()
     server = ClientManager(
-        # host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
-        host_url="ws://raspberrypi.local:8765",
-        handler=ClientHandler.createMocked(),
+        host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
+        # host_url="ws://raspberrypi.local:8765",
+        # handler=ClientHandler.createMocked(),
+        handler=ClientHandler.create(),
     )
-    server.serve()
+    await server.serve()
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
