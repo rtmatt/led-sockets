@@ -103,7 +103,7 @@ class ServerHandler:
                 if self.is_hardware_connected:
                     raise HardwareAlreadyConnectedException()
                 # @todo: pass payload instead of message
-                hardware = self._record_hardware_connection(websocket, init_message)
+                hardware = self._record_hardware_connection(websocket, payload)
             try:
                 await self._init_hardware_connection(hardware)
                 await self._run_hardware_connection(hardware)
@@ -133,10 +133,9 @@ class ServerHandler:
             except Exception as e:
                 await self._handle_exception(e, connection)
 
-    def _record_hardware_connection(self, websocket: ServerConnection, init_message):
+    def _record_hardware_connection(self, websocket: ServerConnection, payload):
         self._log(f'Initializing hardware from {websocket.remote_address}')
         try:
-            payload = json.loads(init_message)
             payload_type = payload['type']
             is_init = payload_type == 'init_hardware'
             if not is_init:
@@ -146,8 +145,6 @@ class ServerHandler:
                 raise InvalidHardwareInitPayloadException('"hardware_state" data missing/invalid')
         except KeyError as e:
             raise InvalidHardwareInitPayloadException(f'Payload missing key: {e}') from e
-        except json.JSONDecodeError as e:
-            raise InvalidHardwareInitPayloadException('Malformed initialization payload') from e
 
         self._hardware_connection = {
             "id": websocket.id,
