@@ -37,7 +37,7 @@ class ServerHandler:
     DEFAULT_HARDWARE_STATE = {"on": False}
 
     def __init__(self):
-        self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
+        self._hardware_state = None
         self._hardware_connection = None
         self._client_connections = {}
 
@@ -250,7 +250,7 @@ class ServerHandler:
         self._log(f'Hardware disconnected')
         self._hardware_connection = None
         # @todo: consider null hardware states when hardware not connected...probs
-        self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
+        self._hardware_state = None
 
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)')
         payload = self.get_hardware_connection_payload()

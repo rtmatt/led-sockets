@@ -12,7 +12,7 @@ const {
 
 interface SocketMessage {
   type: string;
-  attributes?: Object;
+  attributes?: Object | null;
 }
 
 type HardwareStateAttributes = {
@@ -22,7 +22,7 @@ type HardwareStateAttributes = {
 
 interface HardwareStateMessage extends SocketMessage {
   type: 'hardware_state',
-  attributes: HardwareStateAttributes
+  attributes: HardwareStateAttributes | null
 }
 
 interface HardwareConnectionMessage extends SocketMessage {
@@ -128,16 +128,16 @@ export default class LedSockets {
       switch (messageC.type) {
         case 'hardware_state':
           payload = message as HardwareStateMessage;
-          this.updateState(payload.attributes.on, payload.attributes.message);
+          this.updateState(payload.attributes);
           break;
         case 'hardware_connection':
           payload = message as HardwareConnectionMessage;
-          this.updateState(payload.relationships.hardware_state.data.attributes.on);
+          this.updateState(payload.relationships.hardware_state.data.attributes);
           this.updateHardwareStatus(payload.attributes.is_connected);
           break;
         case 'client_init':
           payload = message as ClientConnectionInitMessage;
-          this.updateState(payload.relationships.hardware_state.data.attributes.on, payload.relationships.hardware_state.data.attributes.message);
+          this.updateState(payload.relationships.hardware_state.data.attributes);
           this.updateHardwareStatus(payload.attributes.hardware_is_connected);
           break;
       }
@@ -165,11 +165,17 @@ export default class LedSockets {
   }
 
   private updateState(
-    val: boolean,
-    message?: string,
+    attributes: HardwareStateAttributes | null,
   ) {
-    this.state.status = val;
-    this.checkbox.checked = val;
-    this.messageContainer.innerText = message || '';
+    const {
+      on,
+      message,
+    } = attributes ? attributes : {
+      on: false,
+      message: '',
+    };
+    this.state.status = on;
+    this.checkbox.checked = on;
+    this.messageContainer.innerText = message
   }
 }
