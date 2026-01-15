@@ -4,7 +4,9 @@ import json
 from asyncio import AbstractEventLoop
 
 
-class ClientHandler:
+from LogsConcern import Logs
+
+class ClientHandler(Logs):
     LOG_PREFIX = 'led-sockets-handler'
 
     def __init__(self, board, loop):
@@ -23,10 +25,6 @@ class ClientHandler:
             self._parent = parent
         else:
             raise Exception('Invalid parent')
-
-    def _log(self, msg):
-        timestamp = datetime.datetime.now().isoformat()
-        print(f"{self.LOG_PREFIX} [{timestamp}] {msg}")
 
     def on_connected(self):
         self._board.status_connected()

@@ -10,9 +10,9 @@ from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 
 from ServerHandler import ServerHandler
+from LogsConcern import Logs
 
-
-class ServerManager:
+class ServerManager(Logs):
     """
     Manages top-level server orchestration starting/stopping, opening/closing connections, system signal handling, etc
     offloads business logic to its handler
@@ -33,10 +33,6 @@ class ServerManager:
     @property
     def address(self):
         return f"{self._host}:{self._port}"
-
-    def _log(self, msg):
-        timestamp = datetime.datetime.now().isoformat()
-        print(f"{self.LOG_PREFIX} [{timestamp}] {msg}")
 
     def _record_connection(self, websocket: ServerConnection):
         self._log(f"Connection received from {websocket.remote_address}")

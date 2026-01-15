@@ -9,12 +9,12 @@ from websockets.asyncio.client import connect, ClientConnection
 
 from ClientHandler import ClientHandler
 from board import Board
-
+from LogsConcern import Logs
 
 # # @TODO:
 # # -  [ ] A "reset" button on the board would be neat; resets state and reconnects to server
 
-class ClientManager:
+class ClientManager(Logs):
     LOG_PREFIX = 'led-sockets-client'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
 
@@ -23,11 +23,7 @@ class ClientManager:
         self._handler = handler
         self._connection: None | ClientConnection = None
         self._tasks = []
-        self._handler.setParent(self)
-
-    def _log(self, msg):
-        timestamp = datetime.datetime.now().isoformat()
-        print(f"{self.LOG_PREFIX} [{timestamp}] {msg}")
+        # self._handler.setParent(self)
 
     async def _listen(self):
         """

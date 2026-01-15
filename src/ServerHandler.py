@@ -3,7 +3,7 @@ import datetime
 import json
 
 from websockets.asyncio.server import ServerConnection
-
+from LogsConcern import Logs
 
 class InvalidHardwareInitPayloadException(Exception):
     """Exception raised when hardware init payload is invalid"""
@@ -32,7 +32,7 @@ class ClientMessageException(Exception):
 
 # TODO:
 # - [ ] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
-class ServerHandler:
+class ServerHandler(Logs):
     LOG_PREFIX = 'led-sockets-server'
     DEFAULT_HARDWARE_STATE = {"on": False}
 
@@ -45,10 +45,6 @@ class ServerHandler:
     @property
     def is_hardware_connected(self):
         return self._hardware_connection is not None
-
-    def _log(self, msg):
-        timestamp = datetime.datetime.now().isoformat()
-        print(f"{self.LOG_PREFIX} [{timestamp}] {msg}")
 
     def _log_exception(self, e: Exception, leading_message=''):
         log_message = leading_message if leading_message else str(e)

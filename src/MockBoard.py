@@ -1,8 +1,9 @@
 import asyncio
-import datetime
 import os
 import sys
 import threading
+
+from LogsConcern import Logs
 
 
 async def ainput(prompt=''):
@@ -26,7 +27,7 @@ async def ainput(prompt=''):
     return await fut
 
 
-class MockBoard:
+class MockBoard(Logs):
     LOG_PREFIX = 'led-sockets-mock-board'
 
     def __init__(self):
@@ -42,10 +43,6 @@ class MockBoard:
         self._log('Board starting up')
         self.status_on()
         self.status_disconnected()
-
-    def _log(self, msg):
-        timestamp = datetime.datetime.now().isoformat()
-        print(f"{self.LOG_PREFIX} [{timestamp}] {msg}")
 
     def cleanup(self):
         self._log('cleaning up')
