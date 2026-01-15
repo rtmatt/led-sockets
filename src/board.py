@@ -61,6 +61,9 @@ class Board(AbstractBoard):
     def stop_tone(self):
         self.buzzer.stop()
 
+    def silent(self):
+        self.stop_tone()
+
     def buzz(self, on=True):
         if (on):
             self.play_tone('C3')

@@ -67,3 +67,6 @@ class AbstractBoard(ABC, Logs):
     @abstractmethod
     def buzz(self, on=True):
         pass
+
+    def silent(self):
+        pass

@@ -71,6 +71,9 @@ class MockBoard(AbstractBoard):
     def stop_tone(self):
         self._log('stop tone')
 
+    def silent(self):
+        self._log('silent')
+
     def buzz(self, on=True):
         if (on):
             self._log('buzz on')
