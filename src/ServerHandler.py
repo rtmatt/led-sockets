@@ -201,9 +201,9 @@ class ServerHandler:
 
         try:
             payload = json.loads(message)
-            type = payload['type']
+            payload_type = payload['type']
             attributes = payload['attributes']
-            if not type:
+            if not payload_type:
                 raise HardwareMessageException("No payload type provided")
             if not attributes:
                 raise HardwareMessageException("No payload attributes provided")
@@ -212,13 +212,13 @@ class ServerHandler:
         except KeyError as e:
             raise HardwareMessageException(f"Payload key error: {e}") from e
 
-        match type:
+        match payload_type:
             case 'hardware_state':
                 # This is trusting of the hardware client.  However, we trust them more than ourselves to know what their state looks like.  At least for now
                 self._hardware_state = attributes
                 self._log(f"Hardware state updated: {self._hardware_state}")
             case _:
-                raise HardwareMessageException(f"Unrecognized message type: \"{type}\"")
+                raise HardwareMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
         # forward all messages to all clients
         self._log(f'sending hardware message to {len(self._client_connections)} clients')
@@ -230,21 +230,21 @@ class ServerHandler:
 
         try:
             payload = json.loads(message)
-            type = payload['type']
-            if not type:
+            payload_type = payload['type']
+            if not payload_type:
                 raise ClientMessageException("No payload type provided")
         except json.JSONDecodeError as e:
             raise ClientMessageException('Non-JSON payload') from e
         except KeyError as e:
             raise ClientMessageException(f"Payload key error: {e}") from e
 
-        match type:
+        match payload_type:
             case 'patch_hardware_state':
                 self._log('Passing message to hardware')
                 if self._hardware_connection:
                     await self._hardware_connection.send(message)
             case _:
-                raise ClientMessageException(f"Unrecognized message type: \"{type}\"")
+                raise ClientMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
     async def _handle_hardware_disconnect(self):
         self._log(f'Hardware disconnected')
