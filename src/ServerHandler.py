@@ -222,7 +222,8 @@ class ServerHandler:
 
         # forward all messages to all clients
         self._log(f'sending hardware message to {len(self._client_connections)} clients')
-        tasks = [client.get('connection').send(message) for id,client in self._client_connections.items()]
+        tasks = [client.get('connection').send(message) for id, client in self._client_connections.items()]
+
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _handle_client_message(self, message):
@@ -260,7 +261,9 @@ class ServerHandler:
 
     async def _handle_client_disconnect(self, client):
         self._log(f'Client disconnected')
-        del self._client_connections[client.get('id')]
+        client_id = client.get('id')
+        if client_id and client_id in self._client_connections:
+            del self._client_connections[client_id]
 
     def get_hardware_connection_payload(self):
         return {"type": "hardware_connection",
