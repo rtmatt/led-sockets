@@ -120,7 +120,12 @@ export default class LedSockets {
 
   private onSocketMessage(event: MessageEvent) {
     const { data } = event;
-    const message: unknown = JSON.parse(data);
+    let message: unknown;
+    try {
+      message = JSON.parse(data);
+    } catch (error) {
+      console.warn(data);
+    }
     // @todo: proper narrowing
     if (message && typeof message === 'object' && 'type' in message && message.type) {
       let messageC = message as SocketMessage;
