@@ -170,9 +170,8 @@ class ServerHandler:
     async def _init_hardware_connection(self, hardware):
         connection = hardware.get('connection')
 
-        # @todo: send non-blocking
-        await connection.send("Hello, hardware")
-        # notify all connected clients that hardware is connected/status
+        asyncio.create_task(connection.send("Hello, hardware"))
+
         payload = self.get_hardware_connection_payload()
         await self._broadcast_to_clients(json.dumps(payload))
 
