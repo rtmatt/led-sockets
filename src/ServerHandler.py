@@ -40,6 +40,7 @@ class ServerHandler:
         self._hardware_state = None
         self._hardware_connection = None
         self._client_connections = {}
+        self._hardware_lock = asyncio.Lock()
 
     @property
     def is_hardware_connected(self):
@@ -98,9 +99,11 @@ class ServerHandler:
 
         # route initialization based on entity type
         if payload_type == 'init_hardware':
-            if self.is_hardware_connected:
-                raise HardwareAlreadyConnectedException()
-            hardware = self._record_hardware_connection(websocket, init_message)
+            async with self._hardware_lock:
+                if self.is_hardware_connected:
+                    raise HardwareAlreadyConnectedException()
+                # @todo: pass payload instead of message
+                hardware = self._record_hardware_connection(websocket, init_message)
             try:
                 await self._init_hardware_connection(hardware)
                 await self._run_hardware_connection(hardware)
