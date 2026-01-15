@@ -112,7 +112,7 @@ class ServerHandler:
                 await self._init_client_connection(client)
                 await self._run_client_connection(client)
             finally:
-                self._handle_client_disconnect(client)
+                await self._handle_client_disconnect(client)
 
     async def _run_hardware_connection(self, hardware):
         connection = hardware
@@ -258,7 +258,7 @@ class ServerHandler:
         result = await asyncio.gather(*disconnect_tasks, return_exceptions=True)
         self._log(f'Hardware disconnect result: {result}')
 
-    def _handle_client_disconnect(self, client):
+    async def _handle_client_disconnect(self, client):
         self._log(f'Client disconnected')
         del self._client_connections[client.get('id')]
 
