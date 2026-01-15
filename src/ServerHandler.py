@@ -39,8 +39,7 @@ class ServerHandler:
     def __init__(self):
         self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
         self._hardware_connection = None
-        # @todo: objectify this: make entries contain more info than just the raw connection ({}[websocket.id]={connection:websocket}})
-        self._client_connections = set()
+        self._client_connections = {}
 
     @property
     def is_hardware_connected(self):
@@ -99,25 +98,23 @@ class ServerHandler:
 
         # route initialization based on entity type
         if payload_type == 'init_hardware':
+            if self.is_hardware_connected:
+                raise HardwareAlreadyConnectedException()
+            hardware = self._record_hardware_connection(websocket, init_message)
             try:
-                await self._run_hardware_connection(websocket, init_message)
+                await self._init_hardware_connection(hardware)
+                await self._run_hardware_connection(hardware)
             finally:
-                # Clean up hardware connection here in case _run_hardware_connection dies by exception
                 await self._handle_hardware_disconnect()
         elif payload_type == 'init_client':
+            client = self._record_client_connection(websocket)
             try:
-                await self._run_client_connection(websocket)
+                await self._init_client_connection(client)
+                await self._run_client_connection(client)
             finally:
-                # @ todo: the websocket param's gonna be an issue if client expends during init
-                self._handle_client_disconnect(websocket)
+                self._handle_client_disconnect(client)
 
-    async def _run_hardware_connection(self, websocket: ServerConnection, init_message):
-        if self.is_hardware_connected:
-            raise HardwareAlreadyConnectedException()
-        hardware = self._record_hardware_connection(websocket, init_message)
-
-        await self._init_hardware_connection(hardware)
-
+    async def _run_hardware_connection(self, hardware):
         connection = hardware
         async for message in connection:
             try:
@@ -125,12 +122,8 @@ class ServerHandler:
             except Exception as e:
                 await self._handle_exception(e, connection)
 
-    async def _run_client_connection(self, websocket: ServerConnection):
-        client = self._record_client_connection(websocket)
-
-        await self._init_client_connection(client)
-
-        connection = client
+    async def _run_client_connection(self, client):
+        connection = client.get('connection')
         async for message in connection:
             try:
                 await self._handle_client_message(message)
@@ -162,10 +155,13 @@ class ServerHandler:
 
     def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}')
-        # @todo: Future: create more robust client type
-        client = websocket
-        self._client_connections.add(client)
-        return websocket
+        client = {
+            "id": websocket.id,
+            "connection": websocket
+        }
+        self._client_connections[client.get("id")] = client
+
+        return client
 
     async def _init_hardware_connection(self, hardware):
         connection = hardware
@@ -174,8 +170,8 @@ class ServerHandler:
 
         # notify all connected clients that hardware is connected/status
         payload = self.get_hardware_connection_payload()
-        for client in list(self._client_connections):
-            tasks.append(client.send(json.dumps(payload)))
+        for id, client in self._client_connections.items():
+            tasks.append(client.get('connection').send(json.dumps(payload)))
 
         result = await asyncio.gather(*tasks, return_exceptions=True)
         self._log(f'Hardware setup result: {result}')
@@ -197,7 +193,7 @@ class ServerHandler:
             }
         }
         # Future-state in case client expands beyond websocket
-        websocket = client
+        websocket = client.get('connection')
         await websocket.send(json.dumps(payload))
 
     async def _handle_hardware_message(self, message):
@@ -226,7 +222,7 @@ class ServerHandler:
 
         # forward all messages to all clients
         self._log(f'sending hardware message to {len(self._client_connections)} clients')
-        tasks = [client.send(message) for client in list(self._client_connections)]
+        tasks = [client.get('connection').send(message) for id,client in self._client_connections.items()]
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _handle_client_message(self, message):
@@ -256,15 +252,15 @@ class ServerHandler:
         # @todo: consider null hardware states when hardware not connected...probs
         self._hardware_state = self.DEFAULT_HARDWARE_STATE.copy()
 
-        self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} clients')
+        self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)')
         payload = self.get_hardware_connection_payload()
-        disconnect_tasks = [client.send(json.dumps(payload)) for client in self._client_connections]
+        disconnect_tasks = [client.get('connection').send(json.dumps(payload)) for id,client in self._client_connections.items()]
         result = await asyncio.gather(*disconnect_tasks, return_exceptions=True)
         self._log(f'Hardware disconnect result: {result}')
 
     def _handle_client_disconnect(self, client):
         self._log(f'Client disconnected')
-        self._client_connections.discard(client)
+        del self._client_connections[client.get('id')]
 
     def get_hardware_connection_payload(self):
         return {"type": "hardware_connection",
