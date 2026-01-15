@@ -118,7 +118,7 @@ class ServerHandler:
                 await self._handle_client_disconnect(client)
 
     async def _run_hardware_connection(self, hardware):
-        connection = hardware
+        connection = hardware.get('connection')
         async for message in connection:
             try:
                 await self._handle_hardware_message(message)
@@ -135,8 +135,6 @@ class ServerHandler:
 
     def _record_hardware_connection(self, websocket: ServerConnection, init_message):
         self._log(f'Initializing hardware from {websocket.remote_address}')
-        # @todo Future: create more robust hardware type
-        hardware = websocket
         try:
             payload = json.loads(init_message)
             payload_type = payload['type']
@@ -151,10 +149,13 @@ class ServerHandler:
         except json.JSONDecodeError as e:
             raise InvalidHardwareInitPayloadException('Malformed initialization payload') from e
 
-        self._hardware_connection = hardware
+        self._hardware_connection = {
+            "id": websocket.id,
+            "connection": websocket
+        }
         self._hardware_state = state
 
-        return hardware
+        return self._hardware_connection
 
     def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}')
@@ -167,7 +168,7 @@ class ServerHandler:
         return client
 
     async def _init_hardware_connection(self, hardware):
-        connection = hardware
+        connection = hardware.get('connection')
 
         # @todo: send non-blocking
         await connection.send("Hello, hardware")
@@ -241,15 +242,13 @@ class ServerHandler:
         match payload_type:
             case 'patch_hardware_state':
                 self._log('Passing message to hardware')
-                if self._hardware_connection:
-                    await self._hardware_connection.send(message)
+                await self._send_message_to_hardware(message)
             case _:
                 raise ClientMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
     async def _handle_hardware_disconnect(self):
         self._log(f'Hardware disconnected')
         self._hardware_connection = None
-        # @todo: consider null hardware states when hardware not connected...probs
         self._hardware_state = None
 
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)')
@@ -288,3 +287,7 @@ class ServerHandler:
         for client_id in dead_clients:
             self._log(f'Dropping client connection {client_id}')
             del self._client_connections[client_id]
+
+    async def _send_message_to_hardware(self, message):
+        if self._hardware_connection:
+            await self._hardware_connection.get('connection').send(message)
