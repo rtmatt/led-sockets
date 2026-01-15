@@ -20,6 +20,7 @@ class ServerManager:
     LOG_PREFIX = 'led-sockets-server'
     SHUTDOWN_PAYLOAD = 'BYE FOREVER!'
     CLOSE_CODE = 1001
+    KILL_MESSAGE = 'K byeeeeeeeeeeeeeeeeeee'
 
     def __init__(self, host: str, port: int, handler):
         self._host = host
@@ -85,7 +86,7 @@ class ServerManager:
         async with serve(self._handle_connection, self._host, self._port) as server:
             await self._stop_event.wait()
             await self._stop_server()
-        self._log("K byeeeeeeeeeeeeeeeeeee")
+        self._log(self.KILL_MESSAGE)
 
     async def _stop_server(self):
         await self._disconnect_all()
