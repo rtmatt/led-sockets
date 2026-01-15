@@ -218,9 +218,7 @@ class ServerHandler:
 
         # forward all messages to all clients
         self._log(f'sending hardware message to {len(self._client_connections)} clients')
-        tasks = [client.get('connection').send(message) for id, client in self._client_connections.items()]
-
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await self._broadcast_to_clients(message)
 
     async def _handle_client_message(self, message):
         self._log(f'Client message: {message}')
@@ -268,14 +266,13 @@ class ServerHandler:
             return
 
         self._log(f"Sending message to {len(self._client_connections)} client(s)")
-        tasks = [client.get('connection').send(message) for client_id, client in self._client_connections.items()]
+        client_ids = list(self._client_connections.keys())
+        tasks = [self._client_connections[cid].get('connection').send(message) for cid in client_ids]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         dead_clients = []
-
-        client_id_results = enumerate(zip(self._client_connections.keys(), results))
-        for i, (client_id, result) in client_id_results:
+        for client_id, result in zip(client_ids, results):
             if isinstance(result, Exception):
                 self._log(f'Client {client_id} connection failed: {result}')
                 dead_clients.append(client_id)
