@@ -31,7 +31,7 @@ class ClientMessageException(Exception):
 
 
 # TODO:
-# - [ ] Pass simple messages as JSON
+# - [ ] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
 class ServerHandler:
     LOG_PREFIX = 'led-sockets-server'
     DEFAULT_HARDWARE_STATE = {"on": False}
@@ -273,12 +273,13 @@ class ServerHandler:
         dead_clients = []
         for client_id, result in zip(client_ids, results):
             if isinstance(result, Exception):
-                self._log(f'Client {client_id} connection failed: {result}')
+                self._log(f'Client {client_id} connection exception: {result}')
                 dead_clients.append(client_id)
 
         for client_id in dead_clients:
-            self._log(f'Dropping client connection {client_id}')
-            del self._client_connections[client_id]
+            if client_id and client_id in self._client_connections:
+                self._log(f'Dropping client connection {client_id}')
+                del self._client_connections[client_id]
 
     async def _send_message_to_hardware(self, message):
         if self._hardware_connection:
