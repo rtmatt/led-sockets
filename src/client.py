@@ -9,12 +9,15 @@ from board import Board
 
 
 async def main():
+    loop = asyncio.get_running_loop()
+    board = Board()
+    handler = ClientHandler(
+        board=board,
+        loop=loop
+    )
     server = ClientManager(
         host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
-        handler=ClientHandler(
-            board=Board(),
-            loop=asyncio.get_running_loop()
-        )
+        handler=handler
     )
     await server.serve()
 
