@@ -1,20 +1,22 @@
 from gpiozero import LED, TonalBuzzer, Button
 
+from AbstractBoard import AbstractBoard
 
-class Board:
+
+class Board(AbstractBoard):
+    LOG_PREFIX = 'led-sockets-board'
 
     def __init__(self):
+        AbstractBoard.__init__(self)
         self.green_led = LED(17)
         self.blue_led = LED(12)
         self.red_led = LED(21)
         self.buzzer = TonalBuzzer(26, octaves=2)
         self.button = Button(20)
-        self.button_press_handlers = []
-        self.button_release_handlers = []
         self.button.when_pressed = self.on_button_press
         self.button.when_released = self.on_button_release
-        self.status_on()
-        self.status_disconnected()
+
+        # @todo: update consumers to have them trigger these:  # self.status_on()  # self.status_disconnected()
 
     def cleanup(self):
         print('led-sockets board: cleaning up')
@@ -22,14 +24,6 @@ class Board:
         self.set_green(False)
         self.set_red(False)
         self.stop_tone()
-
-    def add_button_press_handler(self, handler):
-        print('led-sockets board: adding button press handler')
-        self.button_press_handlers.append(handler)
-
-    def add_button_release_handler(self, handler):
-        print('led-sockets board: adding button release handler')
-        self.button_release_handlers.append(handler)
 
     def status_on(self):
         self.set_green(True)
@@ -72,11 +66,3 @@ class Board:
             self.play_tone('C3')
         else:
             self.stop_tone()
-
-    def on_button_press(self, button):
-        for handler in self.button_press_handlers:
-            handler(button)
-
-    def on_button_release(self, button):
-        for handler in self.button_release_handlers:
-            handler(button)
