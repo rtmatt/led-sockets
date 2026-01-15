@@ -16,8 +16,10 @@ async def ainput(prompt=''):
     fut = loop.create_future()
 
     def _run():
-        sys.stdout.write(prompt)
+        sys.stdout.write("\n")
+        sys.stdout.write(f"{prompt}")
         line = sys.stdin.readline()
+        sys.stdout.write("\n")
         loop.call_soon_threadsafe(fut.set_result, line)
 
     threading.Thread(target=_run, daemon=True).start()
@@ -77,13 +79,13 @@ class MockBoard:
         self.set_red(True)
 
     def set_blue(self, value):
-        print(f"set_blue: {value}")
+        self._log(f"blue {'on' if value else 'off'}")
 
     def set_green(self, value):
-        print(f"set_green: {value}")
+        self._log(f"green {'on' if value else 'off'}")
 
     def set_red(self, value):
-        print(f"set_red: {value}")
+        self._log(f"red {'on' if value else 'off'}")
 
     def play_tone(self, note="C5"):
         self._log(f'play tone {note}')
@@ -106,7 +108,7 @@ class MockBoard:
             handler(button)
 
     async def run(self):
-        self._log(f'running on {os.getpid()}')
+        self._log(f'running (pid:{os.getpid()})')
 
         async def prompt_input():
             running = True
