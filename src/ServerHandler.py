@@ -102,7 +102,6 @@ class ServerHandler:
             async with self._hardware_lock:
                 if self.is_hardware_connected:
                     raise HardwareAlreadyConnectedException()
-                # @todo: pass payload instead of message
                 hardware = self._record_hardware_connection(websocket, payload)
             try:
                 await self._init_hardware_connection(hardware)
