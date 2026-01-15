@@ -1,4 +1,27 @@
+import asyncio
 import datetime
+import os
+import sys
+import threading
+
+
+async def ainput(prompt=''):
+    """
+    Get user input on separate thread to support killing process while waiting for input
+
+    https://stackoverflow.com/questions/58493467/asyncio-keyboard-input-that-can-be-canceled
+    :return:
+    """
+    loop = asyncio.get_event_loop()
+    fut = loop.create_future()
+
+    def _run():
+        sys.stdout.write(prompt)
+        line = sys.stdin.readline()
+        loop.call_soon_threadsafe(fut.set_result, line)
+
+    threading.Thread(target=_run, daemon=True).start()
+    return await fut
 
 
 class MockBoard:
@@ -81,3 +104,36 @@ class MockBoard:
     def on_button_release(self, button):
         for handler in self.button_release_handlers:
             handler(button)
+
+    async def run(self):
+        self._log(f'running on {os.getpid()}')
+
+        async def prompt_input():
+            running = True
+            while running:
+                inp = await ainput("What do? (b=button,q=quit): ")
+                input_ = inp.strip()
+                match input_:
+                    case "b":
+                        self._log('Simulating button press')
+                    case "q":
+                        self._log('Fine then')
+                        running = False
+                    case _:
+                        self._log(f'Ignoring unrecognized input "{input_}"')
+
+        try:
+            await prompt_input()
+        except asyncio.CancelledError:
+            self._log('Run canceled')
+
+        self._log('BYEEEEEE')
+
+
+if __name__ == "__main__":
+    async def main():
+        board = MockBoard()
+        await board.run()
+
+
+    asyncio.run(main())
