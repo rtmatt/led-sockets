@@ -166,15 +166,11 @@ class ServerHandler:
     async def _init_hardware_connection(self, hardware):
         connection = hardware
 
-        tasks = [connection.send("Hello, hardware")]
-
+        # @todo: send non-blocking
+        await connection.send("Hello, hardware")
         # notify all connected clients that hardware is connected/status
         payload = self.get_hardware_connection_payload()
-        for id, client in self._client_connections.items():
-            tasks.append(client.get('connection').send(json.dumps(payload)))
-
-        result = await asyncio.gather(*tasks, return_exceptions=True)
-        self._log(f'Hardware setup result: {result}')
+        await self._broadcast_to_clients(json.dumps(payload))
 
     async def _init_client_connection(self, client):
         payload = {
@@ -255,9 +251,7 @@ class ServerHandler:
 
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)')
         payload = self.get_hardware_connection_payload()
-        disconnect_tasks = [client.get('connection').send(json.dumps(payload)) for id,client in self._client_connections.items()]
-        result = await asyncio.gather(*disconnect_tasks, return_exceptions=True)
-        self._log(f'Hardware disconnect result: {result}')
+        await self._broadcast_to_clients(json.dumps(payload))
 
     async def _handle_client_disconnect(self, client):
         self._log(f'Client disconnected')
@@ -270,3 +264,24 @@ class ServerHandler:
                 "attributes": {"is_connected": self._hardware_connection is not None
                                }, "relationships": {
                 "hardware_state": {"data": {"type": "hardware_state", "attributes": self._hardware_state}}}}
+
+    async def _broadcast_to_clients(self, message):
+        if not self._client_connections:
+            return
+
+        self._log(f"Sending message to {len(self._client_connections)} client(s)")
+        tasks = [client.get('connection').send(message) for client_id, client in self._client_connections.items()]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        dead_clients = []
+
+        client_id_results = enumerate(zip(self._client_connections.keys(), results))
+        for i, (client_id, result) in client_id_results:
+            if isinstance(result, Exception):
+                self._log(f'Client {client_id} connection failed: {result}')
+                dead_clients.append(client_id)
+
+        for client_id in dead_clients:
+            self._log(f'Dropping client connection {client_id}')
+            del self._client_connections[client_id]
