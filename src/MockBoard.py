@@ -115,6 +115,7 @@ class MockBoard(Logs):
                 match input_:
                     case "b":
                         self._log('Simulating button press')
+                        self.on_button_press(None)
                     case "q":
                         self._log('Fine then')
                         running = False
