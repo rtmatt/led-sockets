@@ -54,6 +54,8 @@ interface PatchHardwareState extends SocketMessage {
   attributes: Partial<HardwareStateAttributes>;
 }
 
+/* TODO:
+*   - [ ] Add polling upon connection disconnect to restore connection or reconnect button*/
 export default class LedSockets {
   private button: HTMLButtonElement;
 
@@ -89,6 +91,8 @@ export default class LedSockets {
   }
 
   private _addSocketListeners() {
+    // @todo: revise attachment of these to prevent close on page load
+
     this.websocket.addEventListener('close', this.onSocketClose.bind(this));
     this.websocket.addEventListener('error', this.onSocketError.bind(this));
     this.websocket.addEventListener('message', this.onSocketMessage.bind(this));
