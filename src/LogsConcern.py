@@ -20,6 +20,4 @@ class Logs:
         getattr(self._logger, level)(f"{msg}")
 
 
-    def _log(self, msg):
-        timestamp = datetime.datetime.now().isoformat()
-        print(f"[{timestamp}, {self.LOG_PREFIX}] {msg}")
+
