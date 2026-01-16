@@ -15,10 +15,11 @@ from LogsConcern import Logs
 # # -  [ ] A "reset" button on the board would be neat; resets state and reconnects to server
 
 class ClientManager(Logs):
-    LOG_PREFIX = 'led-sockets-client'
+    LOGGER_NAME = 'ledsockets.client.manager'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
 
     def __init__(self, host_url, handler):
+        Logs.__init__(self)
         self._host_url: str = host_url
         self._handler = handler
         self._connection: None | ClientConnection = None

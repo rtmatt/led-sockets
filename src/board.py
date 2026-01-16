@@ -4,7 +4,7 @@ from AbstractBoard import AbstractBoard
 
 
 class Board(AbstractBoard):
-    LOG_PREFIX = 'led-sockets-board'
+    LOGGER_NAME = 'ledsockets.board.physical'
 
     def __init__(self):
         AbstractBoard.__init__(self)
@@ -19,7 +19,7 @@ class Board(AbstractBoard):
         # @todo: update consumers to have them trigger these:  # self.status_on()  # self.status_disconnected()
 
     def cleanup(self):
-        print('led-sockets board: cleaning up')
+        self._log('Cleaning up','debug')
         self.set_blue(False)
         self.set_green(False)
         self.set_red(False)

@@ -17,12 +17,13 @@ class ServerManager(Logs):
     Manages top-level server orchestration starting/stopping, opening/closing connections, system signal handling, etc
     offloads business logic to its handler
     """
-    LOG_PREFIX = 'led-sockets-server'
+    LOGGER_NAME = 'ledsockets.server.manager'
     SHUTDOWN_PAYLOAD = 'BYE FOREVER!'
     CLOSE_CODE = 1001
     KILL_MESSAGE = 'K byeeeeeeeeeeeeeeeeeee'
 
     def __init__(self, host: str, port: int, handler):
+        Logs.__init__(self)
         self._host = host
         self._port = port
         self._handler = handler

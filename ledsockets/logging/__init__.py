@@ -11,7 +11,7 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "cust": {
-            "format": "[%(asctime)s][%(process)d] %(name)s - %(levelname)s - %(message)s",
+            "format": "[%(asctime)s][%(process)d] %(name)-27s %(levelname)s - %(message)s",
         }
     },
     "handlers": {

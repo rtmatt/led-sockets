@@ -33,10 +33,11 @@ class ClientMessageException(Exception):
 # TODO:
 # - [ ] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
 class ServerHandler(Logs):
-    LOG_PREFIX = 'led-sockets-server'
+    LOGGER_NAME = 'ledsockets.server.handler'
     DEFAULT_HARDWARE_STATE = {"on": False}
 
     def __init__(self):
+        Logs.__init__(self)
         self._hardware_state = None
         self._hardware_connection = None
         self._client_connections = {}

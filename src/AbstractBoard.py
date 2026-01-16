@@ -5,6 +5,7 @@ from LogsConcern import Logs
 
 class AbstractBoard(ABC, Logs):
     def __init__(self):
+        Logs.__init__(self)
         self.button_press_handlers = []
         self.button_release_handlers = []
 

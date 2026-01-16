@@ -27,7 +27,7 @@ async def ainput(prompt=''):
 
 
 class MockBoard(AbstractBoard):
-    LOG_PREFIX = 'led-sockets-mock-board'
+    LOGGER_NAME = 'ledsockets.board.mock'
 
     def __init__(self):
         AbstractBoard.__init__(self)

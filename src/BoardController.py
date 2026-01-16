@@ -13,15 +13,16 @@ class BoardInterface:
 
 
 class BoardController(Logs):
-    LOG_PREFIX = 'led-socketsBoard Controller'
+    LOGGER_NAME = 'ledsockets.board.controller'
 
     def __init__(self, board: AbstractBoard):
+        Logs.__init__(self)
         self._board = board
         self._state = {"buzzing": False, "blue": False, "red": False, "green": False, }
 
     def run(self):
-        running = True
-        while running:
+        self._log('Starting run')
+        while True:
             try:
                 user_input = input('What do? (bu[z]zer, [b]lue, '
                                    '[r]ed, [g]reen '

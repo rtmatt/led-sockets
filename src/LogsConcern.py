@@ -1,8 +1,24 @@
-import datetime
+from ledsockets.logging import get_logger
 
 
 class Logs:
-    LOG_PREFIX = ''
+    LOGGER_NAME = ''
+
+    def __init__(self):
+        self._logger = get_logger(self.LOGGER_NAME)
+
+    def _log(self, msg, level='debug'):
+        valid_levels = [
+            'debug',
+            'info',
+            'warning',
+            'error'
+            'critical'
+        ]
+        if level not in valid_levels:
+            raise Exception('Invalid log level')
+        getattr(self._logger, level)(f"{msg}")
+
 
     def _log(self, msg):
         timestamp = datetime.datetime.now().isoformat()

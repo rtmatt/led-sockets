@@ -8,8 +8,10 @@ from LogsConcern import Logs
 
 class ClientHandler(Logs):
     LOG_PREFIX = 'led-sockets-handler'
+    LOGGER_NAME = 'ledsockets.client.handler'
 
     def __init__(self, board, loop):
+        Logs.__init__(self)
         self._board = board
         self._loop: AbstractEventLoop = loop
         self._parent = None
