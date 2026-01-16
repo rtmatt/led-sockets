@@ -93,7 +93,7 @@ class ServerManager(Logs):
         Coordinate application lifecycle
         Register signal handlers to support graceful shutdowns
         """
-        self._log(f"Starting on {self.address} (pid {os.getpid()})")
+        self._log(f"Starting on {self.address} (pid {os.getpid()})",'info')
         loop = asyncio.get_running_loop()
         signals = (signal.SIGINT, signal.SIGTERM)
 
