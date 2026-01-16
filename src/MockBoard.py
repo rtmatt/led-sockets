@@ -79,37 +79,3 @@ class MockBoard(AbstractBoard):
             self._log('buzz on')
         else:
             self._log('buzz off')
-
-    async def run(self):
-        self._log(f'running (pid:{os.getpid()})')
-
-        async def prompt_input():
-            running = True
-            while running:
-                inp = await ainput("What do? (b=button,q=quit): ")
-                input_ = inp.strip()
-                match input_:
-                    case "b":
-                        self._log('Simulating button press')
-                        self.on_button_press(None)
-                    case "q":
-                        self._log('Fine then')
-                        running = False
-                    case _:
-                        self._log(f'Ignoring unrecognized input "{input_}"')
-
-        try:
-            await prompt_input()
-        except asyncio.CancelledError:
-            self._log('Run canceled')
-
-        self._log('BYEEEEEE')
-
-
-if __name__ == "__main__":
-    async def main():
-        board = MockBoard()
-        await board.run()
-
-
-    asyncio.run(main())
