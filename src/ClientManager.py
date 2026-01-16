@@ -1,144 +1,164 @@
 import asyncio
-import datetime
 import json
 import os
 import signal
+from functools import partial
 
 from dotenv import load_dotenv
 from websockets.asyncio.client import connect, ClientConnection
 
+from BoardController import BoardController
 from ClientHandler import ClientHandler
-from board import Board
 from LogsConcern import Logs
+from MockBoard import MockBoard
+from board import Board
+
 
 # # @TODO:
 # # -  [ ] A "reset" button on the board would be neat; resets state and reconnects to server
+# # - [ ] Following the previous, don't end process on a server connection break...sit and wait for button-based reconnect
 
 class ClientManager(Logs):
     LOGGER_NAME = 'ledsockets.client.manager'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
 
-    def __init__(self, host_url, handler):
+    def __init__(self, host_url, handler: ClientHandler):
         Logs.__init__(self)
         self._host_url: str = host_url
+        self._stop_event = asyncio.Event()
+        self._shutting_down = False
         self._handler = handler
         self._connection: None | ClientConnection = None
-        self._tasks = []
-        # self._handler.setParent(self)
-
-    async def _listen(self):
-        """
-        Listen to the websocket connection for new messages
-        """
-        self._log('Initialized.  Listening for messages...')
-        if self._connection:
-            async for message in self._connection:
-                self._log(f'Server says: {message}  {self._connection.remote_address}')
-                await self._handler.on_message(message, self._connection)
-        else:
-            raise Exception('Listen called without connection')
-
-    async def handle_connection_closed(self):
-        self._log('Server connection closed')
-        self._handler.on_connection_closed()
-
-    async def _initialize_connection(self):
-        """
-        Initialize websocket connection with identification payload
-        """
-        if not self._connection:
-            raise Exception('Initializing non-existent connection')
-
-        self._log('Initializing Connection')
-        payload = {
-            "type": "init_hardware",
-            "relationships": {
-                "hardware_state": {
-                    "data": self._get_hardware_state()
-                }
-            }
-        }
-        await self._connection.send(json.dumps(payload))
+        self._log('Created', 'debug')
 
     def _get_hardware_state(self):
         return self._handler.get_state()
 
-    async def _shutdown(self, sig):
-        """
-        Perform a graceful shutdown.
-        Cancel all active tasks within loop and notify connections of shutdown
-        :param sig: The signal triggering the shutdown (SIGINT, SIGTERM
-        :param tasks: The tasks to cancel for the shutdown
-        """
-        self._log(f"Shutdown signal received ({sig.name})")
-        if (self._connection):
-            self._log('Broadcasting impending death')
-            await self._connection.send(self.CONNECTION_CLOSING_MESSAGE)
-            await self._connection.close()
-        for task in self._tasks:
-            task.cancel()
+    async def send_message(self, message, connection=None):
+        self._log(f"Sending message: {message}")
+        target = connection if connection else self._connection
+        if not target:
+            self._log("Failed to send message: No active connection")
 
-        # @todo should not need to gather since it's already done in start_server
-        # await asyncio.gather(*self._tasks, return_exceptions=True)
+        await target.send(message)
 
-    async def _build_connection(self):
-        """
-        Build the websocket connection and queue initialization/listening
-        @todo: refine exception handling if warranted
-        @todo: wrap logic with while loop with a asyncio.sleep() to retry in the case network is lost
-        """
+    async def _on_message(self, message, connection):
+        if self._shutting_down:
+            return
+
+        self._log(f'Server says: {message}  {connection.remote_address}')
+        self._handler.on_message(message, connection)
+
+    async def _listen(self, connection: ClientConnection):
+        self._log('Listening to connection')
+        async for message in connection:
+            await self._on_message(message, connection)
+
+        self._log('Server closed the connection', 'info')
+
+    async def _on_connection_opened(self, connection):
+        self._log('Processing new connection')
+        self._connection = connection
+        self._handler.on_connection_open(connection)
+        self._log('Sending init message')
+        payload = {
+            "type": "init_hardware",
+            "relationships": {
+                "hardware_state": {
+                    "data": {
+                        "type": 'hardware_state',
+                        "attributes": self._get_hardware_state()
+                    }
+                }
+            }
+        }
+        await self.send_message(json.dumps(payload), connection)
+
+    async def _on_connection_closed(self):
+        self._log('Processing closed connection')
+        self._handler.on_connection_closed(self._connection)
+        self._connection = None
+
+    async def _trigger_shutdown(self, sig):
+        if self._shutting_down:
+            self._log(f"Already shutting down", 'debug')
+            return
+        self._log(f'[{sig.name}] Triggering shutdown', 'info')
+        self._shutting_down = True
+
+        # @todo: we could just close the connection, resulting in natural flow/exit
+        # or we could do our own thing
+        if self._connection:
+            self._log('Broadcasting impending death', 'debug')
+            asyncio.create_task(self.send_message(self.CONNECTION_CLOSING_MESSAGE, self._connection))
+
+        self._stop_event.set()
+
+    async def _run_server(self):
+        self._log('Opening connection')
         try:
-            self._log('Establishing connection')
             async with connect(self._host_url) as websocket:
-                self._log('Connected')
-                self._handler.on_connected()
-                self._connection = websocket
-                await self._initialize_connection()
-                self._handler.on_initialized()
-                await self._listen()
-                await self.handle_connection_closed()
+                await self._on_connection_opened(websocket)
+                self._handler.on_initialized(websocket)
+
+                listen_task = asyncio.create_task(self._listen(websocket))
+                shutdown_task = asyncio.create_task(self._stop_event.wait())
+                await asyncio.wait(
+                    [listen_task, shutdown_task],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
         except OSError as e:
-            self._log(f"Connection failed: {e}")
-        except asyncio.CancelledError:
-            pass
+            self._log(f"Connection failed", 'critical', e)
+            # raise e
+        # @todo: remove this if indeed nothing happens except a reraise
+        # except asyncio.CancelledError:
+        #     pass
+        except Exception as e:
+            # @todo: this is here in case some other sort of exception handling makes sense
+            self._log(f"Connection error", 'critical', e)
+            raise e
         finally:
-            self._connection = None
+            # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves)
+            await self._on_connection_closed()
+
+    def _handle_sigterm(self, sig):
+        asyncio.create_task(self._trigger_shutdown(sig))
 
     async def serve(self):
-        """
-        Create task wrapper for calling connection creation method
-        Allows process to terminate gracefully on SIGINT and SIGKILL
-
-        Registers shutdown handler upon signal
-        """
-        self._log(f"Starting (pid {os.getpid()})")
+        self._log(f"Starting (pid {os.getpid()})", 'info')
         loop = asyncio.get_running_loop()
-        self._tasks = [
-            asyncio.create_task(self._build_connection())
-        ]
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, lambda sig=sig: asyncio.create_task(self._shutdown(sig)))
-        await asyncio.gather(*self._tasks)
-
-    async def send_message(self, message):
-        if self._connection:
-            self._log(f"Sending message: {message}")
-            await self._connection.send(message)
-        else:
-            self._log("Failed to send message: No active connection")
+        signals = (signal.SIGINT, signal.SIGTERM)
+        for sig in signals:
+            loop.add_signal_handler(sig, partial(self._handle_sigterm, sig))
+        try:
+            await self._run_server()
+        finally:
+            for sig in signals:
+                loop.remove_signal_handler(sig)
+            self._log("Stopped", 'debug')
 
 
 async def main():
+    MOCK_BOARD = os.getenv('MOCK_BOARD', 'false').lower() == 'true'
+    tasks = []
+
+    if MOCK_BOARD:
+        board = MockBoard()
+        controller = BoardController(board)
+        tasks.append(asyncio.create_task(controller.run_lite()))
+    else:
+        board = Board()
+
+    handler = ClientHandler(
+        board=board,
+    )
     server = ClientManager(
         host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
-        # host_url="ws://raspberrypi.local:8765",
-        handler=ClientHandler(
-            board=Board(),
-            # board=MockBoard(),
-            loop=asyncio.get_running_loop()
-        ),
+        handler=handler
     )
-    await server.serve()
+    tasks.append(asyncio.create_task(server.serve()))
+
+    await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
 
 if __name__ == '__main__':
