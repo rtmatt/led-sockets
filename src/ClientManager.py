@@ -86,8 +86,6 @@ class ClientManager(Logs):
         self._log(f'[{sig.name}] Triggering shutdown', 'info')
         self._shutting_down = True
 
-        # @todo: we could just close the connection, resulting in natural flow/exit
-        # or we could do our own thing
         if self._connection:
             self._log('Broadcasting impending death', 'debug')
             asyncio.create_task(self.send_message(self.CONNECTION_CLOSING_MESSAGE, self._connection))
@@ -110,11 +108,7 @@ class ClientManager(Logs):
         except OSError as e:
             self._log(f"Connection failed", 'critical', e)
             # raise e
-        # @todo: remove this if indeed nothing happens except a reraise
-        # except asyncio.CancelledError:
-        #     pass
         except Exception as e:
-            # @todo: this is here in case some other sort of exception handling makes sense
             self._log(f"Connection error", 'critical', e)
             raise e
         finally:
