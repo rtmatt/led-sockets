@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+# TODO: This will will ultimately be the entrypoint for the client app
+from ledsockets.client.client_manager import exec_commend_line
+from ledsockets.logging import get_logger
+
+logger = get_logger('ledsockets.client')
+
+if __name__ == "__main__":
+    logger.info('starting')
+    # drawn from fail2ban
+    exec_commend_line()
