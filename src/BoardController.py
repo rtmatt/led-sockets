@@ -8,10 +8,6 @@ from MockBoard import MockBoard
 from board import Board
 
 
-class BoardInterface:
-    pass
-
-
 class BoardController(Logs):
     LOGGER_NAME = 'ledsockets.board.controller'
 
@@ -28,8 +24,8 @@ class BoardController(Logs):
                                    '[r]ed, [g]reen '
                                    'b[u]tton, [t]one, [s]ilent'
                                    ', [q]uit): ').strip()
-            except KeyboardInterrupt:
-                print("\r")
+            except (EOFError, KeyboardInterrupt):
+                self._log('KBI/EOF', 'debug')
                 break
 
             match user_input:
@@ -59,10 +55,34 @@ class BoardController(Logs):
                     except ValueError as e:
                         print(e)
                 case 'q':
-                    running = False
+                    break
                 case _:
-                    self._log('I don\'t know what that means')
-        self._log('K byeeeee.')
+                    print('I don\'t know what that means')
+
+        print('K byeeeee.')
+        self._log('Run ended', 'info')
+
+    def run_lite(self):
+        self._log('Starting run lite')
+        while True:
+            try:
+                user_input = input("What do? (b[u]tton"
+                                   ", [q]uit):"
+                                   )
+            except (EOFError, KeyboardInterrupt):
+                self._log('KBI/EOF', 'debug')
+                break
+
+            match user_input:
+                case 'u':
+                    self._board.on_button_press(None)
+                case 'q':
+                    break
+                case _:
+                    print('I don\'t know what that means')
+
+        print('K byeeeee.')
+        self._log('Run ended','info')
 
 
 def main():
@@ -78,7 +98,8 @@ def main():
     board.add_button_press_handler(example_button_handler)
 
     c = BoardController(board)
-    c.run()
+    # c.run()
+    c.run_lite()
 
 
 if __name__ == "__main__":
