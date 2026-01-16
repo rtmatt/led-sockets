@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 from dotenv import load_dotenv
@@ -62,9 +63,10 @@ class BoardController(Logs):
         print('K byeeeee.')
         self._log('Run ended', 'info')
 
-    def run_lite(self):
+    async def run_lite(self):
         self._log('Starting run lite')
         while True:
+            await asyncio.sleep(0)
             try:
                 user_input = input("What do? (b[u]tton"
                                    ", [q]uit):"
@@ -99,7 +101,7 @@ def main():
 
     c = BoardController(board)
     # c.run()
-    c.run_lite()
+    asyncio.run(c.run_lite())
 
 
 if __name__ == "__main__":
