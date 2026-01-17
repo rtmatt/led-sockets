@@ -110,15 +110,19 @@ supervisor.
 # Web Installation
 * drop the `public/index.html` file into your web root
 * You'll need to modify the websocket URL in the script tag to point to your websocket server
+# TODO: This section requires updating to account for new frontend
 
 # Raspberry Pi Setup
 * Install `gpiozero` library `sudo apt install python3-gpiozero` if it's not already installed
 * Wire up:
-  * a green [LED](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_1.1.1_blinking_led_python.html) to pin 17 ...Don't forget the resistors!
-  * a blue LED to pin 12
-  * a red LED to pin 21
-  * a [passive buzzer](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_1.2.2_passive_buzzer_python.html) to pin 26
-  * a [button](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_2.1.1_button_python.html) to pin 20
+    * a green LED to pin 17 ...Don't forget the resistors!
+        * [LED](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_1.1.1_blinking_led_python.html)
+    * a blue LED to pin 12
+    * a red LED to pin 21
+    * a passive buzzer to pin 26
+        * [passive buzzer](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_1.2.2_passive_buzzer_python.html)
+    * a button to pin 20
+        * [button](https://docs.sunfounder.com/projects/davinci-kit/en/latest/python_pi5/pi5_2.1.1_button_python.html)
 
 # Contributing
 ## Development Setup
@@ -195,12 +199,13 @@ While the client and server are runnning, in a third session in the Pi:
 ```
 In the prompt, send:
 ```
-{"type": "change_state","data": {"is_on": true}}
+{"id":"","type":"init_client"}
+{"type":"patch_hardware_state","attributes":{"on":true}}
 ```
 The light and buzzer on the Pi should activate. You can leave it in this state if you like. Some people enjoy the sound.
 If you don't, you can turn it off:
 ```
-{"type": "change_state","data": {"is_on": false}}
+{"type":"patch_hardware_state","attributes":{"on":false}}
 ```
 ### Environment Configuration
 The environment can be configured by setting `.env` vars. First, copy the example file:
@@ -245,3 +250,9 @@ You can verify the build via:
 ```
 npm run preview
 ```
+
+## Deployment
+@TODO full guide. 
+- Need to set supervisor confs to autostart in desired environments
+- Need to restart supervisor queues after code changes
+- (might) need to .venv/bin/pip install -e . again after code changes (I'm thinking not, but think harder)
