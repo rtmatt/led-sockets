@@ -7,9 +7,9 @@ from ledsockets.server.server import run_server
 
 
 async def run_unified():
+    asyncio.create_task(run_client())
     await asyncio.gather(
         asyncio.create_task(run_server()),
-        asyncio.create_task(run_client()),
     )
 
 
