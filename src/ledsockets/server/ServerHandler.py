@@ -212,8 +212,6 @@ class ServerHandler(Logs):
             case _:
                 raise HardwareMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
-        # forward all messages to all clients
-        self._log(f'sending hardware message to {len(self._client_connections)} clients')
         await self._broadcast_to_clients(message)
 
     async def _handle_client_message(self, message):
@@ -261,7 +259,7 @@ class ServerHandler(Logs):
         if not self._client_connections:
             return
 
-        self._log(f"Sending message to {len(self._client_connections)} client(s)")
+        self._log(f"Sending message to {len(self._client_connections)} client(s): {message}")
         client_ids = list(self._client_connections.keys())
         tasks = [self._client_connections[cid].get('connection').send(message) for cid in client_ids]
 
