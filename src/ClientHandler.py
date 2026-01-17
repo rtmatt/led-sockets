@@ -55,7 +55,7 @@ class ClientHandler(Logs):
     async def _handle_message_exception(self, e: Exception, connection: ServerConnection):
         match e:
             case ServerMessageException():
-                self._log('Ignoring invalid message', 'warning',e)
+                self._log(f'Ignoring invalid message: {e}','warning')
                 # @todo: don't send a message.  The server and client won't stop telling each other their message
                 #  wasn't JSON
                 # await connection.send(f"Message had no effect ({e})")
@@ -73,8 +73,8 @@ class ClientHandler(Logs):
             try:
                 asyncio.create_task(self._message_broker.send_message(json.dumps(self.state_payload)))
             except AttributeError as e:
-                self._log(f'Sending update message failed', 'warning', e)
-                # @todo: should the physical state reset?
+                self._log(f'Sending update message failed {e}', 'warning')
+                # @todo: should the physical state reset? or cache/restore
         else:
             self._log("Button press ignored-- button is off", "info")
 
@@ -104,7 +104,6 @@ class ClientHandler(Logs):
                 raise ServerMessageException(f'Unsupported payload type "{payload_type}"')
             on = payload['attributes']['on']
         except json.JSONDecodeError as e:
-            self._log('Ignoring non-JSON message')
             raise ServerMessageException(f'Non-JSON payload') from e
         except KeyError as e:
             raise ServerMessageException(f"Payload key error: {e}") from e
