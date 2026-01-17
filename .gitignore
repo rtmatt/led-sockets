@@ -5,3 +5,4 @@
 __pycache__
 node_modules
 .vite
+led_sockets.egg-info
