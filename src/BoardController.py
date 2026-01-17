@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 
 from dotenv import load_dotenv
 
@@ -66,7 +67,30 @@ class BoardController(Logs):
     async def run_lite(self):
         self._log('Starting run lite')
         while True:
-            await asyncio.sleep(0)
+            await asyncio.sleep(0.25)
+            try:
+                user_input = input("What do? (b[u]tton"
+                                   ", [q]uit):"
+                                   )
+            except (EOFError, KeyboardInterrupt):
+                self._log('KBI/EOF', 'debug')
+                break
+
+            match user_input:
+                case 'u':
+                    self._board.on_button_press(None)
+                case 'q':
+                    break
+                case _:
+                    print('I don\'t know what that means')
+
+        print('K byeeeee.')
+        self._log('Run ended','info')
+
+    def run_lite_sync(self):
+        self._log('Starting run lite')
+        while True:
+            time.sleep(0.25)
             try:
                 user_input = input("What do? (b[u]tton"
                                    ", [q]uit):"
