@@ -12,6 +12,8 @@ MAX_BYTES = 1000000
 
 maxBytes = 0 if IS_DEVELOPMENT else MAX_BYTES
 mode = "w" if IS_DEVELOPMENT else "a"
+
+# @todo: configure base/root logger
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
