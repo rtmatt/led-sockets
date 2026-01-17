@@ -137,12 +137,28 @@ git clone git@github.com:rtmatt/led-sockets.git
 ```
 Within the directory, create the python venv, activate it, and install dependencies:
 ```
+cd led-sockets
 python -m venv .venv --system-site-packages
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 The `system-site-packages` flag gives the venv access to system-wide packages. In our case, we want access to the system
 gpiozero package to enable the app to modify the state of the board.
+
+Lastly, install the source code as an editable package:
+```
+pip install -e .
+```
+This installs the source as an editable package; it will essentially add the `src` directory to the python `sys.
+path` (by way of the `site` module) so module references within the source code will work
+(Should you ever need to undo this for any reason, you can run `pip uninstall led-sockets`)
+
+Verify everything is in working order:
+```
+python src/ledsockets/verify.py
+```
+You should see an info log saying it's working. If you see a `ModuleNotFoundError`, the editable installation isn't
+correct.
 
 ### Running
 First, run the echo server script:
