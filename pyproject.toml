@@ -2,3 +2,6 @@
 name = "led-sockets"
 version = "0.0.0"
 
+[project.scripts]
+ledsockets-client = "ledsockets.client.client:main"
+ledsockets-server = "ledsockets.server.server:main"

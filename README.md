@@ -19,10 +19,13 @@ This project allows visitors of a website to turn a blue LED attached to a Raspb
 # Server Setup
 ## Base Installation
 * clone repo `git clone git@github.com:rtmatt/led-sockets.git`
+* within directory (`cd led-sockets`)...
 * set env `cp.env.example .env` (modify as needed). It's recommended to set the `ECHO_SERVER_HOST` to `localhost`
   in production environments
 * activate virtualenv `python -m venv .venv`
+    * activate it `source .venv/bin/activate`
 * install dependencies `pip install -r requirements.txt`
+* load editable package `pip install -e .`
 ## Nginx setup
 Assuming you already have a domain/site set up, all you need to do is drop in the `location` block of the
 `resources/nginx/led-sockets.conf` file within the `server` block of your nginx config:
@@ -39,7 +42,7 @@ and restart the server
 `sudo systemctl restart nginx`
 ## Run it and test
 From the project root, run
-`source .venv/bin/activate && python src/server.py`
+`source .venv/bin/activate && ledsockets-server`
 Then, from another session:
 ```
 source .venv/bin/activate 
@@ -73,13 +76,16 @@ boot and restart if it crashes.
 ## Base Installation
 * clone repo `git clone git@github.com:rtmatt/led-sockets.git`
 * set env `cp.env.example .env`. Set `HARDWARE_SOCKET_URL` to the URL of your websocket server (modify as needed)
-* activate virtualenv `python -m  venv venv --system-site-packages`
+* create virtualenv `python -m  venv venv --system-site-packages`
+    * activate it `source .venv/bin/activate`
 * install dependencies `pip install -r requirements.txt`
-* run the client `python src/server.py`
+* load editable package `pip install -e .`
 ## Run it and test
 From the project root, run
-`source .venv/bin/activate && python src/client.py`
-The green and red LEDs should turn on. Once the client connects to the server, the red LED should turn off.
+`source .venv/bin/activate && ledsockets-client`
+
+You should see some log outputs. If a compatible server is not running at the `HARDWARE_SOCKET_URL`, you should mostly
+see connection errors.
 ## Supervisor
 At this point, the script will stop running once the ssh session closes. By adding supervisor, the script can be run on
 boot and restart if it crashes. Before proceeding, make sure the server is running as described above and ideally run by
@@ -140,22 +146,19 @@ Within the directory, create the python venv, activate it, and install dependenc
 cd led-sockets
 python -m venv .venv --system-site-packages
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.
+pip install -e .
 ```
 The `system-site-packages` flag gives the venv access to system-wide packages. In our case, we want access to the system
 gpiozero package to enable the app to modify the state of the board.
 
-Lastly, install the source code as an editable package:
-```
-pip install -e .
-```
-This installs the source as an editable package; it will essentially add the `src` directory to the python `sys.
-path` (by way of the `site` module) so module references within the source code will work
-(Should you ever need to undo this for any reason, you can run `pip uninstall led-sockets`)
+`pip install -e .` installs the source as an editable package; it will essentially add the `src` directory to the python `sys.
+path` (by way of the `site` module) so module references within the source code will work (Should you ever need to 
+undo this for any reason, you can run `pip uninstall led-sockets`)
 
 Verify everything is in working order:
 ```
-python src/ledsockets/verify.py
+.venv/bin/python src/ledsockets/verify.py
 ```
 You should see an info log saying it's working. If you see a `ModuleNotFoundError`, the editable installation isn't
 correct.
@@ -163,20 +166,21 @@ correct.
 ### Running
 First, run the echo server script:
 ```
-python src/server.py
+source .venv/bin/activate
+ledsockets-server
 ```
 This needs to be run before the client.
 
 Second, in another ssh session, run the hardware client script. Don't forget to activate the venv first:
 ```
 source .venv/bin/activate
-python src/client.py
+ledsockets-client
 ```
 
 Alternatively, the preceding commands can be run via the following without activating the venv:
 ```
-.venv/bin/python src/server.py
-.venv/bin/python src/client.py
+.venv/bin/ledsockets-server
+.venv/bin/ledsockets-client
 ```
 ### Verify
 While the client and server are runnning, in a third session in the Pi:

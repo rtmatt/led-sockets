@@ -3,13 +3,13 @@ import os
 
 from dotenv import load_dotenv
 
+from ledsockets.board.Board import Board
+from ledsockets.board.MockBoard import MockBoard
 from ledsockets.client.ClientHandler import ClientHandler
 from ledsockets.client.ClientManager import ClientManager
-from ledsockets.board.MockBoard import MockBoard
-from ledsockets.board.Board import Board
 
 
-async def main():
+async def run_client():
     MOCK_BOARD = os.getenv('MOCK_BOARD', 'false').lower() == 'true'
 
     if MOCK_BOARD:
@@ -29,6 +29,10 @@ async def main():
     await server.serve()
 
 
-if __name__ == "__main__":
+def main():
     load_dotenv()
-    asyncio.run(main())
+    asyncio.run(run_client())
+
+
+if __name__ == "__main__":
+    main()
