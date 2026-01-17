@@ -10,6 +10,7 @@ from websockets.asyncio.client import connect, ClientConnection
 from BoardController import BoardController
 from ClientHandler import ClientHandler
 from LogsConcern import Logs
+from MessageBroker import MessageBroker
 from MockBoard import MockBoard
 from board import Board
 
@@ -18,7 +19,7 @@ from board import Board
 # # -  [ ] A "reset" button on the board would be neat; resets state and reconnects to server
 # # - [ ] Following the previous, don't end process on a server connection break...sit and wait for button-based reconnect
 
-class ClientManager(Logs):
+class ClientManager(Logs, MessageBroker):
     LOGGER_NAME = 'ledsockets.client.manager'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
 
@@ -28,11 +29,10 @@ class ClientManager(Logs):
         self._stop_event = asyncio.Event()
         self._shutting_down = False
         self._handler = handler
+        self._handler.message_broker = self
+
         self._connection: None | ClientConnection = None
         self._log('Created', 'debug')
-
-    def _get_hardware_state(self):
-        return self._handler.get_state()
 
     async def send_message(self, message, connection=None):
         self._log(f"Sending message: {message}")
@@ -47,7 +47,12 @@ class ClientManager(Logs):
             return
 
         self._log(f'Server says: {message}  {connection.remote_address}')
-        self._handler.on_message(message, connection)
+
+        try:
+            await self._handler.on_message(message, connection)
+        except Exception as e:
+            self._log('Message error', 'critical', e)
+            raise e
 
     async def _listen(self, connection: ClientConnection):
         self._log('Listening to connection')
@@ -55,6 +60,10 @@ class ClientManager(Logs):
             await self._on_message(message, connection)
 
         self._log('Server closed the connection', 'info')
+
+    async def _on_connection_pending(self):
+        self._log('Opening connection')
+        self._handler.on_connection_pending()
 
     async def _on_connection_opened(self, connection):
         self._log('Processing new connection')
@@ -65,10 +74,7 @@ class ClientManager(Logs):
             "type": "init_hardware",
             "relationships": {
                 "hardware_state": {
-                    "data": {
-                        "type": 'hardware_state',
-                        "attributes": self._get_hardware_state()
-                    }
+                    "data": self._handler.state_payload
                 }
             }
         }
@@ -93,7 +99,7 @@ class ClientManager(Logs):
         self._stop_event.set()
 
     async def _run_server(self):
-        self._log('Opening connection')
+        await self._on_connection_pending()
         try:
             async with connect(self._host_url) as websocket:
                 await self._on_connection_opened(websocket)
@@ -142,6 +148,9 @@ async def main():
         tasks.append(asyncio.create_task(controller.run_lite()))
     else:
         board = Board()
+
+    board.status_on()
+    board.status_disconnected()
 
     handler = ClientHandler(
         board=board,
