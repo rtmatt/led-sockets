@@ -5,3 +5,4 @@ version = "0.0.0"
 [project.scripts]
 ledsockets-client = "ledsockets.client.client:main"
 ledsockets-server = "ledsockets.server.server:main"
+ledsockets = "ledsockets.unified:main"

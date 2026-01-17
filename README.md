@@ -182,6 +182,12 @@ Alternatively, the preceding commands can be run via the following without activ
 .venv/bin/ledsockets-server
 .venv/bin/ledsockets-client
 ```
+
+Ultimately, you can run both the server and the client at the same time if needed
+```
+.venv/bin/ledsockets
+```
+
 ### Verify
 While the client and server are runnning, in a third session in the Pi:
 ```
