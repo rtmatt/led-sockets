@@ -1,9 +1,11 @@
 import asyncio
-import datetime
 import json
 
 from websockets.asyncio.server import ServerConnection
+from websockets.client import ClientConnection
+
 from ledsockets.log.LogsConcern import Logs
+
 
 class InvalidHardwareInitPayloadException(Exception):
     """Exception raised when hardware init payload is invalid"""
@@ -273,7 +275,15 @@ class ServerHandler(Logs):
 
         for client_id in dead_clients:
             if client_id and client_id in self._client_connections:
-                self._log(f'Dropping client connection {client_id}')
+                self._log(f'Dropping dead client connection {client_id}')
+                # Close the connection just in case it's still active. This will drop any connections we can't successfully send to internally and externally
+                try:
+                    connection: ClientConnection | None = self._client_connections.get(client_id)
+                    if (connection):
+                        # idempotent: closing it again is fine
+                        connection.close()
+                except Exception:
+                    pass
                 del self._client_connections[client_id]
 
     async def _send_message_to_hardware(self, message):
