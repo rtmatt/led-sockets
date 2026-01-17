@@ -3,7 +3,8 @@ import logging.config
 from pathlib import Path
 
 current_file_path = Path(__file__)
-target_dir = current_file_path.parent.parent.parent
+target_dir = current_file_path.parent.parent.parent.parent
+
 target_dirpath = target_dir / "logs"
 
 IS_DEVELOPMENT = True
