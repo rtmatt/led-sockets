@@ -71,3 +71,7 @@ class AbstractBoard(ABC, Logs):
 
     def silent(self):
         pass
+
+    @abstractmethod
+    def status_connecting(self):
+        pass

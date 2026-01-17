@@ -52,6 +52,9 @@ class MockBoard(AbstractBoard):
         self._log('status connected')
         self.set_red(False)
 
+    def status_connecting(self):
+        self._log('status connecting')
+
     def status_disconnected(self):
         self._log('status disconnected')
         self.set_red(True)

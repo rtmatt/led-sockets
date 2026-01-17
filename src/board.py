@@ -26,13 +26,17 @@ class Board(AbstractBoard):
         self.stop_tone()
 
     def status_on(self):
-        self.set_green(True)
+        self.green_led.blink()
 
     def status_off(self):
         self.set_green(False)
 
     def status_connected(self):
         self.set_red(False)
+        self.set_green(True)
+
+    def status_connecting(self):
+        self.red_led.blink()
 
     def status_disconnected(self):
         self.set_red(True)
