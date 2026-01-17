@@ -23,7 +23,7 @@ class AbstractBoard(ABC, Logs):
 
     def add_button_release_handler(self, handler):
         self._log('adding button release handler')
-        self.button_press_handlers.append(handler)
+        self.button_release_handlers.append(handler)
 
     @abstractmethod
     def cleanup(self):
