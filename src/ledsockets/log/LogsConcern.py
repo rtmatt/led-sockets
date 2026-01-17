@@ -17,6 +17,8 @@ class Logs:
         ]
         if level not in valid_levels:
             self._logger.warning('Invalid log level')
+            msg = f"{level}: {msg}"
+            level = 'debug'
         getattr(self._logger, level)(f"{msg}",*args)
 
 
