@@ -7,12 +7,12 @@ from functools import partial
 from dotenv import load_dotenv
 from websockets.asyncio.client import connect, ClientConnection
 
-from BoardController import BoardController
-from ClientHandler import ClientHandler
-from LogsConcern import Logs
-from MessageBroker import MessageBroker
-from MockBoard import MockBoard
-from board import Board
+from ledsockets.board.BoardController import BoardController
+from ledsockets.client.ClientHandler import ClientHandler
+from ledsockets.log.LogsConcern import Logs
+from ledsockets.contracts.MessageBroker import MessageBroker
+from ledsockets.board.MockBoard import MockBoard
+from ledsockets.board.Board import Board
 
 
 # # @TODO:

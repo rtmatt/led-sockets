@@ -3,10 +3,10 @@ import os
 
 from dotenv import load_dotenv
 
-from ClientHandler import ClientHandler
-from ClientManager import ClientManager
-from MockBoard import MockBoard
-from board import Board
+from ledsockets.client.ClientHandler import ClientHandler
+from ledsockets.client.ClientManager import ClientManager
+from ledsockets.board.MockBoard import MockBoard
+from ledsockets.board.Board import Board
 
 
 async def main():

@@ -4,10 +4,10 @@ import time
 
 from dotenv import load_dotenv
 
-from AbstractBoard import AbstractBoard
-from LogsConcern import Logs
-from MockBoard import MockBoard
-from board import Board
+from ledsockets.board.AbstractBoard import AbstractBoard
+from ledsockets.log.LogsConcern import Logs
+from ledsockets.board.MockBoard import MockBoard
+from ledsockets.board.Board import Board
 
 
 class BoardController(Logs):

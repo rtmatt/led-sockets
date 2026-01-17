@@ -1,9 +1,8 @@
 import asyncio
-import os
 import sys
 import threading
 
-from AbstractBoard import AbstractBoard
+from ledsockets.board.AbstractBoard import AbstractBoard
 
 
 async def ainput(prompt=''):

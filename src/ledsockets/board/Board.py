@@ -1,6 +1,6 @@
 from gpiozero import LED, TonalBuzzer, Button
 
-from AbstractBoard import AbstractBoard
+from ledsockets.board.AbstractBoard import AbstractBoard
 
 
 class Board(AbstractBoard):

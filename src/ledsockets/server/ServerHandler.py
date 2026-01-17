@@ -3,7 +3,7 @@ import datetime
 import json
 
 from websockets.asyncio.server import ServerConnection
-from LogsConcern import Logs
+from ledsockets.log.LogsConcern import Logs
 
 class InvalidHardwareInitPayloadException(Exception):
     """Exception raised when hardware init payload is invalid"""

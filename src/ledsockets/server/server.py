@@ -3,8 +3,8 @@ import os
 
 from dotenv import load_dotenv
 
-from ServerHandler import ServerHandler
-from ServerManager import ServerManager
+from ledsockets.server.ServerHandler import ServerHandler
+from ledsockets.server.ServerManager import ServerManager
 
 
 async def main():

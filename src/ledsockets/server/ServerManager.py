@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import os
 import signal
 from functools import partial
@@ -9,8 +8,8 @@ from websockets.asyncio.server import ServerConnection
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 
-from ServerHandler import ServerHandler
-from LogsConcern import Logs
+from ledsockets.server.ServerHandler import ServerHandler
+from ledsockets.log.LogsConcern import Logs
 
 class ServerManager(Logs):
     """

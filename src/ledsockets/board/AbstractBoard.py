@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from LogsConcern import Logs
+from ledsockets.log.LogsConcern import Logs
 
 
 class AbstractBoard(ABC, Logs):

@@ -1,4 +1,4 @@
-from LoggingBridge import get_logger
+from ledsockets.log import get_logger
 
 
 class Logs:

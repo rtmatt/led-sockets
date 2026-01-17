@@ -1,6 +1,6 @@
 import sys
 
-from ledsockets.logging import get_logger
+from ledsockets.log import get_logger
 
 logger = get_logger('ledsockets.client.manager')
 
