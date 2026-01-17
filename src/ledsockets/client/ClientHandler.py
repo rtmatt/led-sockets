@@ -79,7 +79,9 @@ class ClientHandler(Logs):
             self._state['on'] = False
             self._state['message'] = "I turned it off"
             try:
-                self._event_loop.create_task(self._message_broker.send_message(json.dumps(self.state_payload)))
+                self._event_loop.call_soon_threadsafe(
+                    lambda: asyncio.create_task(self._message_broker.send_message(json.dumps(self.state_payload)))
+                )
             except AttributeError as e:
                 self._log(f'Sending update message failed {e}', 'warning')
                 # @todo: should the physical state reset? or cache/restore
