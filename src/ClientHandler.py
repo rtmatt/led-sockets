@@ -32,7 +32,16 @@ class ClientHandler(Logs):
         self._board.add_button_press_handler(self._on_board_button_press)
         self._connection = None
         self._message_broker: MessageBroker | None = None
+        self._event_loop = None
         self._log('Created', 'debug')
+
+    @property
+    def event_loop(self):
+        return self._event_loop
+
+    @event_loop.setter
+    def event_loop(self, value: MessageBroker):
+        self._event_loop = value
 
     @property
     def message_broker(self):
@@ -64,14 +73,13 @@ class ClientHandler(Logs):
 
     def _on_board_button_press(self, button=None):
         self._log('Button press received')
-
         if self._state['on']:
             self._board.buzz(False)
             self._board.set_blue(False)
             self._state['on'] = False
             self._state['message'] = "I turned it off"
             try:
-                asyncio.create_task(self._message_broker.send_message(json.dumps(self.state_payload)))
+                self._event_loop.create_task(self._message_broker.send_message(json.dumps(self.state_payload)))
             except AttributeError as e:
                 self._log(f'Sending update message failed {e}', 'warning')
                 # @todo: should the physical state reset? or cache/restore

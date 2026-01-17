@@ -30,6 +30,7 @@ class ClientManager(Logs, MessageBroker):
         self._shutting_down = False
         self._handler = handler
         self._handler.message_broker = self
+        self._handler.event_loop = asyncio.get_running_loop()
 
         self._connection: None | ClientConnection = None
         self._log('Created', 'debug')
