@@ -75,3 +75,7 @@ class AbstractBoard(ABC, Logs):
     @abstractmethod
     def status_connecting(self):
         pass
+
+    def run(self):
+        self.status_on()
+        self.status_disconnected()

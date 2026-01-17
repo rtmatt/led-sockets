@@ -137,6 +137,8 @@ async def main():
     else:
         board = Board()
 
+    board.run()
+
     handler = ClientHandler(board=board, )
 
     controller = BoardController(board)

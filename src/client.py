@@ -5,15 +5,22 @@ from dotenv import load_dotenv
 
 from ClientHandler import ClientHandler
 from ClientManager import ClientManager
+from MockBoard import MockBoard
 from board import Board
 
 
 async def main():
-    loop = asyncio.get_running_loop()
-    board = Board()
+    MOCK_BOARD = os.getenv('MOCK_BOARD', 'false').lower() == 'true'
+
+    if MOCK_BOARD:
+        board = MockBoard()
+    else:
+        board = Board()
+
+    board.run()
+
     handler = ClientHandler(
         board=board,
-        loop=loop
     )
     server = ClientManager(
         host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
