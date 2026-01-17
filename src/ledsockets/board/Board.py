@@ -2,7 +2,7 @@ from gpiozero import LED, TonalBuzzer, Button
 
 from ledsockets.board.AbstractBoard import AbstractBoard
 
-
+# TODO: consider extracting pins to env vars
 class Board(AbstractBoard):
     LOGGER_NAME = 'ledsockets.board.physical'
 
