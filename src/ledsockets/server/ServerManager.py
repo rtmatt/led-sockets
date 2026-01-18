@@ -34,7 +34,11 @@ class ClientMessageException(Exception):
 
 # TODO:
 # - [ ] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
-class ServerEventHandler(Logs):
+class ServerManager(Logs):
+    """
+    Manages business logic for a Server
+    Handles connection management, routing and other business logic
+    """
     LOGGER_NAME = 'ledsockets.server.handler'
     DEFAULT_HARDWARE_STATE = {"on": False}
 

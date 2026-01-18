@@ -9,7 +9,7 @@ from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 
 from ledsockets.log.LogsConcern import Logs
-from ledsockets.server.ServerEventHandler import ServerEventHandler
+from ledsockets.server.ServerManager import ServerManager
 
 
 class Server(Logs):
@@ -109,7 +109,7 @@ async def run_server():
     server = Server(
         host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
         port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
-        handler=ServerEventHandler()
+        handler=ServerManager()
     )
 
     await server.serve()
