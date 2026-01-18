@@ -99,10 +99,10 @@ class ClientEventHandler(Logs):
         self._log('on_connection_pending heard', 'debug')
         self._board.status_connecting()
 
-    async def _handle_message_exception(self, e: Exception, connection: ServerConnection):
+    async def _handle_message_exception(self, e: Exception, message, connection: ServerConnection):
         match e:
             case ServerMessageException():
-                self._log(f'Ignoring invalid message: {e}', 'warning')
+                self._log(f'Ignoring invalid message ({e}): "{message}"', 'info')
                 # @todo: it would be good to add a talkback to the source that the message was bad; however, we don't want to create an infinite pingback on "not JSON" messages
                 # Also, we'll need to add a way to make sure errors from board go to source client and not all clients.  Original payload could contain client id info (or intermediate server could add the client ID)
                 # await connection.send(f"Message had no effect ({e})")
@@ -139,7 +139,7 @@ class ClientEventHandler(Logs):
         try:
             await self._process_message(message, connection)
         except Exception as e:
-            await self._handle_message_exception(e, connection)
+            await self._handle_message_exception(e, message,connection)
 
 
 async def main():
