@@ -7,12 +7,11 @@ from functools import partial
 from dotenv import load_dotenv
 from websockets.asyncio.client import connect, ClientConnection
 
-from ledsockets.board.BoardController import BoardController
-from ledsockets.client.ClientEventHandler import ClientEventHandler
-from ledsockets.log.LogsConcern import Logs
-from ledsockets.contracts.MessageBroker import MessageBroker
-from ledsockets.board.MockBoard import MockBoard
 from ledsockets.board.Board import Board
+from ledsockets.board.MockBoard import MockBoard
+from ledsockets.client.ClientEventHandler import ClientEventHandler
+from ledsockets.contracts.MessageBroker import MessageBroker
+from ledsockets.log.LogsConcern import Logs
 
 
 # # @TODO:
@@ -52,6 +51,7 @@ class Client(Logs, MessageBroker):
         try:
             await self._handler.on_message(message, connection)
         except Exception as e:
+            # @todo: send message that message couldn't be processed; don't end execution
             self._log('Message error', 'critical', e)
             raise e
 
@@ -62,9 +62,21 @@ class Client(Logs, MessageBroker):
 
         self._log('Server closed the connection', 'info')
 
-    async def _on_connection_pending(self):
-        self._log('Opening connection')
-        self._handler.on_connection_pending()
+    async def _run_connection(self, connection):
+        listen_task = asyncio.create_task(self._listen(connection))
+        shutdown_task = asyncio.create_task(self._stop_event.wait())
+        await asyncio.wait(
+            [listen_task, shutdown_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+    async def _on_connection_closed(self):
+        self._log('Processing closed connection')
+        self._handler.on_connection_closed(self._connection)
+        self._connection = None
+
+    async def _on_connection_initialized(self, connection):
+        self._handler.on_initialized(connection)
 
     async def _on_connection_opened(self, connection):
         self._log('Processing new connection')
@@ -81,10 +93,26 @@ class Client(Logs, MessageBroker):
         }
         await self.send_message(json.dumps(payload), connection)
 
-    async def _on_connection_closed(self):
-        self._log('Processing closed connection')
-        self._handler.on_connection_closed(self._connection)
-        self._connection = None
+    async def _on_connection_pending(self):
+        self._log('Opening connection')
+        self._handler.on_connection_pending()
+
+    async def _run_client(self):
+        await self._on_connection_pending()
+        try:
+            async with connect(self._host_url) as websocket:
+                await self._on_connection_opened(websocket)
+                await self._on_connection_initialized(websocket)
+                await self._run_connection(websocket)
+        except OSError as e:
+            self._log(f"Connection failed", 'critical', e)
+            # raise e
+        except Exception as e:
+            self._log(f"Connection error", 'critical', e)
+            raise e
+        finally:
+            # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves)
+            await self._on_connection_closed()
 
     async def _trigger_shutdown(self, sig):
         if self._shutting_down:
@@ -98,29 +126,6 @@ class Client(Logs, MessageBroker):
             asyncio.create_task(self.send_message(self.CONNECTION_CLOSING_MESSAGE, self._connection))
 
         self._stop_event.set()
-
-    async def _run_client(self):
-        await self._on_connection_pending()
-        try:
-            async with connect(self._host_url) as websocket:
-                await self._on_connection_opened(websocket)
-                self._handler.on_initialized(websocket)
-
-                listen_task = asyncio.create_task(self._listen(websocket))
-                shutdown_task = asyncio.create_task(self._stop_event.wait())
-                await asyncio.wait(
-                    [listen_task, shutdown_task],
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-        except OSError as e:
-            self._log(f"Connection failed", 'critical', e)
-            # raise e
-        except Exception as e:
-            self._log(f"Connection error", 'critical', e)
-            raise e
-        finally:
-            # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves)
-            await self._on_connection_closed()
 
     def _handle_sigterm(self, sig):
         asyncio.create_task(self._trigger_shutdown(sig))

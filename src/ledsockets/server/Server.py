@@ -8,8 +8,9 @@ from websockets.asyncio.server import ServerConnection
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 
-from ledsockets.server.ServerEventHandler import ServerEventHandler
 from ledsockets.log.LogsConcern import Logs
+from ledsockets.server.ServerEventHandler import ServerEventHandler
+
 
 class Server(Logs):
     """
@@ -34,24 +35,13 @@ class Server(Logs):
     def address(self):
         return f"{self._host}:{self._port}"
 
-    def _record_connection(self, websocket: ServerConnection):
-        self._log(f"Connection received from {websocket.remote_address}")
-        self._connections.add(websocket)
-
     def _record_disconnect(self, websocket: ServerConnection):
         self._connections.discard(websocket)
         self._log(f"Connection dropped from {websocket.remote_address}")
 
-    async def _close_connection(self, websocket: ServerConnection):
-        if websocket.close_code is not None:
-            return
-        try:
-            # Add a timeout so a single slow client doesn't hang the whole shutdown
-            async with asyncio.timeout(2.0):
-                await websocket.send(self.SHUTDOWN_PAYLOAD)
-                await websocket.close(self.CLOSE_CODE)
-        except Exception:
-            pass
+    def _record_connection(self, websocket: ServerConnection):
+        self._log(f"Connection received from {websocket.remote_address}")
+        self._connections.add(websocket)
 
     async def _handle_connection(self, websocket):
         self._record_connection(websocket)
@@ -64,11 +54,31 @@ class Server(Logs):
         finally:
             self._record_disconnect(websocket)
 
+    async def _close_connection(self, websocket: ServerConnection):
+        if websocket.close_code is not None:
+            return
+        try:
+            # Add a timeout so a single slow client doesn't hang the whole shutdown
+            async with asyncio.timeout(2.0):
+                await websocket.send(self.SHUTDOWN_PAYLOAD)
+                await websocket.close(self.CLOSE_CODE)
+        except Exception:
+            pass
+
     async def _disconnect_all(self):
         if self._connections:
             self._log(f"Closing active connections ({len(self._connections)})")
             tasks = [self._close_connection(conn) for conn in list(self._connections)]
             await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _stop_server(self):
+        await self._disconnect_all()
+
+    async def _run_server(self):
+        async with serve(self._handle_connection, self._host, self._port) as server:
+            await self._stop_event.wait()
+            await self._stop_server()
+        self._log(self.KILL_MESSAGE)
 
     def _trigger_shutdown(self, sig):
         if self._shutting_down:
@@ -78,32 +88,21 @@ class Server(Logs):
         self._log(f"Shutting down (received {sig.name})...")
         self._stop_event.set()
 
-    async def _run_server(self):
-        async with serve(self._handle_connection, self._host, self._port) as server:
-            await self._stop_event.wait()
-            await self._stop_server()
-        self._log(self.KILL_MESSAGE)
-
-    async def _stop_server(self):
-        await self._disconnect_all()
+    def _handle_sigterm(self,sig):
+        self._trigger_shutdown(sig)
 
     async def serve(self):
-        """
-        Coordinate application lifecycle
-        Register signal handlers to support graceful shutdowns
-        """
-        self._log(f"Starting on {self.address} (pid {os.getpid()})",'info')
+        self._log(f"Starting on {self.address} (pid {os.getpid()})", 'info')
         loop = asyncio.get_running_loop()
         signals = (signal.SIGINT, signal.SIGTERM)
-
         for sig in signals:
-            loop.add_signal_handler(sig, partial(self._trigger_shutdown, sig))
+            loop.add_signal_handler(sig, partial(self._handle_sigterm, sig))
         try:
             await self._run_server()
         finally:
             for sig in signals:
                 loop.remove_signal_handler(sig)
-            self._log("Stopped")
+            self._log("Stopped", 'debug')
 
 
 async def run_server():
