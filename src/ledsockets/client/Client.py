@@ -76,9 +76,13 @@ class Client(Logs, MessageBroker):
             [listen_task, shutdown_task],
             return_when=asyncio.FIRST_COMPLETED,
         )
-        # Re-raise any exceptions
+        # Cancel outstanding task
+        for p in pending:
+            p.cancel()
+        # Re-raise any exceptions from completed tasks
         for t in tasks:
-            self._log(f"Run connection result:{t.result()}", 'debug')
+            if not t.cancelled() and t.exception():
+                raise t.exception()
 
     async def _on_connection_closed(self):
         self._log('Processing closed connection', 'debug')
@@ -142,7 +146,10 @@ class Client(Logs, MessageBroker):
 
         if self._connection:
             self._log('Broadcasting impending death', 'debug')
-            asyncio.create_task(self.send_message(self.CONNECTION_CLOSING_MESSAGE, self._connection))
+            try:
+                await asyncio.create_task(self.send_message(self.CONNECTION_CLOSING_MESSAGE, self._connection))
+            except Exception as e:
+                self._log(f"Failed to send shutdown message: {e}", 'warning')
 
         self._stop_event.set()
 
