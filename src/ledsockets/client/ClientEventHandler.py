@@ -3,7 +3,6 @@ import json
 import os
 
 from dotenv import load_dotenv
-from websockets import ServerConnection
 
 from ledsockets.board.AbstractBoard import AbstractBoard
 from ledsockets.board.Board import Board
@@ -35,7 +34,7 @@ class ClientEventHandler(Logs):
         self._board.add_button_press_handler(self._on_board_button_press)
         self._connection = None
         self._message_broker: MessageBroker | None = None
-        self._event_loop = None
+        self._event_loop: asyncio.AbstractEventLoop | None = None
         self._log('Created', 'debug')
 
     @property
@@ -43,7 +42,9 @@ class ClientEventHandler(Logs):
         return self._event_loop
 
     @event_loop.setter
-    def event_loop(self, value: MessageBroker):
+    def event_loop(self, value: asyncio.AbstractEventLoop):
+        if value and not isinstance(value, asyncio.AbstractEventLoop):
+            raise TypeError('Must be an asyncio.AbstractEventLoop')
         self._event_loop = value
 
     @property
@@ -72,8 +73,9 @@ class ClientEventHandler(Logs):
             self._state['on'] = False
             self._state['message'] = "I turned it off"
             try:
-                self._event_loop.call_soon_threadsafe(
-                    lambda: asyncio.create_task(self._message_broker.send_message(json.dumps(self.state_payload)))
+                asyncio.run_coroutine_threadsafe(
+                    self._message_broker.send_message(json.dumps(self.state_payload)),
+                    self._event_loop
                 )
             except AttributeError as e:
                 self._log(f'Sending update message failed {e}', 'warning')
@@ -99,17 +101,17 @@ class ClientEventHandler(Logs):
         self._log('on_connection_pending heard', 'debug')
         self._board.status_connecting()
 
-    async def _handle_message_exception(self, e: Exception, message, connection: ServerConnection):
+    async def _handle_message_exception(self, e: Exception, message):
         match e:
             case ServerMessageException():
                 self._log(f'Ignoring invalid message ({e}): "{message}"', 'info')
                 # @todo: it would be good to add a talkback to the source that the message was bad; however, we don't want to create an infinite pingback on "not JSON" messages
                 # Also, we'll need to add a way to make sure errors from board go to source client and not all clients.  Original payload could contain client id info (or intermediate server could add the client ID)
-                # await connection.send(f"Message had no effect ({e})")
+                # await self.message_broker.send(f"Message had no effect ({e})")
             case _:
                 raise e
 
-    async def _process_message(self, message: str, connection):
+    async def _process_message(self, message: str):
         try:
             payload = json.loads(message)
             payload_type = payload['type']
@@ -132,14 +134,14 @@ class ClientEventHandler(Logs):
             self._board.set_blue(False)
             self._board.buzz(False)
 
-        await connection.send(json.dumps(self.state_payload))
+        await self.message_broker.send_message(json.dumps(self.state_payload))
 
     async def on_message(self, message, connection):
         self._log(f'Handling message: {message}', 'debug')
         try:
-            await self._process_message(message, connection)
+            await self._process_message(message)
         except Exception as e:
-            await self._handle_message_exception(e, message,connection)
+            await self._handle_message_exception(e, message)
 
 
 async def main():
@@ -151,7 +153,13 @@ async def main():
 
     board.run()
 
+    class MockMessageBroker(MessageBroker):
+        def send_message(self, message):
+            print(f"Mock send: {message}")
+
     handler = ClientEventHandler(board=board, )
+    handler.event_loop = asyncio.get_running_loop()
+    handler.message_broker = MockMessageBroker()
 
     controller = BoardController(board)
     await controller.run_lite()
