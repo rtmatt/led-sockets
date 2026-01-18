@@ -6,11 +6,11 @@ from dotenv import load_dotenv
 from websockets import ServerConnection
 
 from ledsockets.board.AbstractBoard import AbstractBoard
-from ledsockets.board.BoardController import BoardController
-from ledsockets.log.LogsConcern import Logs
-from ledsockets.contracts.MessageBroker import MessageBroker
-from ledsockets.board.MockBoard import MockBoard
 from ledsockets.board.Board import Board
+from ledsockets.board.BoardController import BoardController
+from ledsockets.board.MockBoard import MockBoard
+from ledsockets.contracts.MessageBroker import MessageBroker
+from ledsockets.log.LogsConcern import Logs
 
 
 class ServerMessageException(Exception):
@@ -19,6 +19,9 @@ class ServerMessageException(Exception):
 
 
 class ClientEventHandler(Logs):
+    """
+    Handles events received by a hardware Client (connection)
+    """
     LOGGER_NAME = 'ledsockets.client.handler'
     DEFAULT_STATE = {
         "on": False,
@@ -61,16 +64,6 @@ class ClientEventHandler(Logs):
     def state_payload(self):
         return {"type": 'hardware_state', "attributes": self.state}
 
-    async def _handle_message_exception(self, e: Exception, connection: ServerConnection):
-        match e:
-            case ServerMessageException():
-                self._log(f'Ignoring invalid message: {e}','warning')
-                # @todo: don't send a message.  The server and client won't stop telling each other their message
-                #  wasn't JSON
-                # await connection.send(f"Message had no effect ({e})")
-            case _:
-                raise e
-
     def _on_board_button_press(self, button=None):
         self._log('Button press received')
         if self._state['on']:
@@ -105,6 +98,16 @@ class ClientEventHandler(Logs):
     def on_connection_pending(self):
         self._log('on_connection_pending heard', 'debug')
         self._board.status_connecting()
+
+    async def _handle_message_exception(self, e: Exception, connection: ServerConnection):
+        match e:
+            case ServerMessageException():
+                self._log(f'Ignoring invalid message: {e}', 'warning')
+                # @todo: it would be good to add a talkback to the source that the message was bad; however, we don't want to create an infinite pingback on "not JSON" messages
+                # Also, we'll need to add a way to make sure errors from board go to source client and not all clients.  Original payload could contain client id info (or intermediate server could add the client ID)
+                # await connection.send(f"Message had no effect ({e})")
+            case _:
+                raise e
 
     async def _process_message(self, message: str, connection):
         try:
