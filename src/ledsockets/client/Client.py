@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from websockets.asyncio.client import connect, ClientConnection
 
 from ledsockets.board.BoardController import BoardController
-from ledsockets.client.ClientHandler import ClientHandler
+from ledsockets.client.ClientEventHandler import ClientEventHandler
 from ledsockets.log.LogsConcern import Logs
 from ledsockets.contracts.MessageBroker import MessageBroker
 from ledsockets.board.MockBoard import MockBoard
@@ -23,7 +23,7 @@ class Client(Logs, MessageBroker):
     LOGGER_NAME = 'ledsockets.client.manager'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
 
-    def __init__(self, host_url, handler: ClientHandler):
+    def __init__(self, host_url, handler: ClientEventHandler):
         Logs.__init__(self)
         self._host_url: str = host_url
         self._stop_event = asyncio.Event()
@@ -148,7 +148,7 @@ async def run_client():
 
     board.run()
 
-    handler = ClientHandler(
+    handler = ClientEventHandler(
         board=board,
     )
     server = Client(

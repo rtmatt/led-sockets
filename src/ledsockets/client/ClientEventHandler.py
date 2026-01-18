@@ -18,7 +18,7 @@ class ServerMessageException(Exception):
     pass
 
 
-class ClientHandler(Logs):
+class ClientEventHandler(Logs):
     LOGGER_NAME = 'ledsockets.client.handler'
     DEFAULT_STATE = {
         "on": False,
@@ -148,7 +148,7 @@ async def main():
 
     board.run()
 
-    handler = ClientHandler(board=board, )
+    handler = ClientEventHandler(board=board, )
 
     controller = BoardController(board)
     await controller.run_lite()
