@@ -1,17 +1,21 @@
 import logging.config
-
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 current_file_path = Path(__file__)
 target_dir = current_file_path.parent.parent.parent.parent
-
 target_dirpath = target_dir / "logs"
 
-IS_DEVELOPMENT = True
-MAX_BYTES = 1000000
-
-maxBytes = 0 if IS_DEVELOPMENT else MAX_BYTES
-mode = "w" if IS_DEVELOPMENT else "a"
+IS_DEVELOPMENT = os.getenv('APP_ENV', 'production').lower() == 'local'
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
+MAX_BYTES = 0 if IS_DEVELOPMENT else 1000000
+FILE_MODE = "w" if IS_DEVELOPMENT else "a"
+if os.getenv('LOG_FILE_MODE'):
+    FILE_MODE = os.getenv('LOG_FILE_MODE')
 
 # @todo: configure base/root logger
 LOGGING = {
@@ -33,24 +37,24 @@ LOGGING = {
             "filename": target_dirpath / "ledsockets.log",
             "formatter": "cust",
             "backupCount": 5,
-            "maxBytes": maxBytes,
-            "mode": mode,
+            "maxBytes": MAX_BYTES,
+            "mode": FILE_MODE
         },
         "fileServer": {
             "class": "logging.handlers.RotatingFileHandler",
             "filename": target_dirpath / "ledsockets-server.log",
             "formatter": "cust",
             "backupCount": 5,
-            "maxBytes": maxBytes,
-            "mode": mode,
+            "maxBytes": MAX_BYTES,
+            "mode": FILE_MODE
         },
         "fileClient": {
             "class": "logging.handlers.RotatingFileHandler",
             "filename": target_dirpath / "ledsockets-client.log",
             "formatter": "cust",
             "backupCount": 5,
-            "maxBytes": maxBytes,
-            "mode": mode,
+            "maxBytes": MAX_BYTES,
+            "mode": FILE_MODE
         },
         "fileBoard": {
             "class": "logging.handlers.RotatingFileHandler",
@@ -58,21 +62,21 @@ LOGGING = {
             "formatter": "cust",
             "backupCount": 5,
             "maxBytes": MAX_BYTES,
-            "mode": "a"
+            "mode": FILE_MODE
         },
     },
     "loggers": {
         "ledsockets": {
-            "handlers": ["stdout", "fileAll"], "level": "DEBUG"
+            "handlers": ["stdout", "fileAll"], "level": LOG_LEVEL
         },
         "ledsockets.board": {
-            "handlers": ["fileBoard"], "level": "DEBUG"
+            "handlers": ["fileBoard"], "level": LOG_LEVEL
         },
         "ledsockets.server": {
-            "handlers": ["fileServer"], "level": "DEBUG"
+            "handlers": ["fileServer"], "level": LOG_LEVEL
         },
         "ledsockets.client": {
-            "handlers": ["fileClient"], "level": "DEBUG"
+            "handlers": ["fileClient"], "level": LOG_LEVEL
         }
     },
 }
