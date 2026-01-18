@@ -4,6 +4,6 @@ version = "0.0.0"
 requires-python = ">=3.11"
 
 [project.scripts]
-ledsockets-client = "ledsockets.client.ClientManager:main"
-ledsockets-server = "ledsockets.server.ServerManager:main"
+ledsockets-client = "ledsockets.client.Client:main"
+ledsockets-server = "ledsockets.server.Server:main"
 ledsockets = "ledsockets.unified:main"

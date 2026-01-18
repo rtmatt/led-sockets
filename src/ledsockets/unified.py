@@ -2,8 +2,8 @@ import asyncio
 
 from dotenv import load_dotenv
 
-from ledsockets.client.ClientManager import run_client
-from ledsockets.server.ServerManager import run_server
+from ledsockets.client.Client import run_client
+from ledsockets.server.Server import run_server
 
 
 async def run_unified():

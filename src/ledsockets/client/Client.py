@@ -19,7 +19,7 @@ from ledsockets.board.Board import Board
 # # -  [ ] A "reset" button on the board would be neat; resets state and reconnects to server
 # # - [ ] Following the previous, don't end process on a server connection break...sit and wait for button-based reconnect
 
-class ClientManager(Logs, MessageBroker):
+class Client(Logs, MessageBroker):
     LOGGER_NAME = 'ledsockets.client.manager'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
 
@@ -99,7 +99,7 @@ class ClientManager(Logs, MessageBroker):
 
         self._stop_event.set()
 
-    async def _run_server(self):
+    async def _run_client(self):
         await self._on_connection_pending()
         try:
             async with connect(self._host_url) as websocket:
@@ -125,14 +125,14 @@ class ClientManager(Logs, MessageBroker):
     def _handle_sigterm(self, sig):
         asyncio.create_task(self._trigger_shutdown(sig))
 
-    async def serve(self):
+    async def start(self):
         self._log(f"Starting (pid {os.getpid()})", 'info')
         loop = asyncio.get_running_loop()
         signals = (signal.SIGINT, signal.SIGTERM)
         for sig in signals:
             loop.add_signal_handler(sig, partial(self._handle_sigterm, sig))
         try:
-            await self._run_server()
+            await self._run_client()
         finally:
             for sig in signals:
                 loop.remove_signal_handler(sig)
@@ -151,11 +151,11 @@ async def run_client():
     handler = ClientHandler(
         board=board,
     )
-    server = ClientManager(
+    server = Client(
         host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
         handler=handler
     )
-    await server.serve()
+    await server.start()
 
 
 def main():

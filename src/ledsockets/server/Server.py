@@ -11,7 +11,7 @@ from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 from ledsockets.server.ServerHandler import ServerHandler
 from ledsockets.log.LogsConcern import Logs
 
-class ServerManager(Logs):
+class Server(Logs):
     """
     Manages top-level server orchestration starting/stopping, opening/closing connections, system signal handling, etc
     offloads business logic to its handler
@@ -107,7 +107,7 @@ class ServerManager(Logs):
 
 
 async def run_server():
-    server = ServerManager(
+    server = Server(
         host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
         port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
         handler=ServerHandler()
