@@ -14,6 +14,16 @@ from ledsockets.contracts.MessageBroker import MessageBroker
 from ledsockets.log.LogsConcern import Logs
 
 
+class ClientConnectionError(Exception):
+    """Represents an error when initializing or running a connection"""
+    pass
+
+
+class ClientMessageException(Exception):
+    """Represents an issue processing a message"""
+    pass
+
+
 # # @TODO:
 # # -  [ ] A "reset" button on the board would be neat; resets state and reconnects to server
 # # - [ ] Following the previous, don't end process on a server connection break...sit and wait for button-based reconnect
@@ -38,7 +48,7 @@ class Client(Logs, MessageBroker):
         self._log(f"Sending message: {message}")
         target = connection if connection else self._connection
         if not target:
-            self._log("Failed to send message: No active connection")
+            raise Exception('Unable to send message without a target')
 
         await target.send(message)
 
@@ -47,38 +57,35 @@ class Client(Logs, MessageBroker):
             return
 
         self._log(f'Server says: {message}  {connection.remote_address}')
-
-        try:
-            await self._handler.on_message(message, connection)
-        except Exception as e:
-            # @todo: send message that message couldn't be processed; don't end execution
-            self._log('Message error', 'critical', e)
-            raise e
+        await self._handler.on_message(message, connection)
 
     async def _listen(self, connection: ClientConnection):
         self._log('Listening to connection')
         async for message in connection:
-            await self._on_message(message, connection)
+            try:
+                await self._on_message(message, connection)
+            except Exception as e:
+                raise ClientMessageException('Uncaught ClientEventHandler on_message error') from e
 
         self._log('Server closed the connection', 'info')
 
     async def _run_connection(self, connection):
         listen_task = asyncio.create_task(self._listen(connection))
         shutdown_task = asyncio.create_task(self._stop_event.wait())
-        await asyncio.wait(
+        tasks, pending = await asyncio.wait(
             [listen_task, shutdown_task],
             return_when=asyncio.FIRST_COMPLETED,
         )
+        # Re-raise any exceptions
+        for t in tasks:
+            self._log(f"Run connection result:{t.result()}", 'info')
 
     async def _on_connection_closed(self):
         self._log('Processing closed connection')
         self._handler.on_connection_closed(self._connection)
         self._connection = None
 
-    async def _on_connection_initialized(self, connection):
-        self._handler.on_initialized(connection)
-
-    async def _on_connection_opened(self, connection):
+    async def _do_connection_init(self, connection):
         self._log('Processing new connection')
         self._connection = connection
         self._handler.on_connection_open(connection)
@@ -93,6 +100,10 @@ class Client(Logs, MessageBroker):
         }
         await self.send_message(json.dumps(payload), connection)
 
+    async def _on_connection_opened(self, connection):
+        await self._do_connection_init(connection)
+        self._handler.on_initialized(connection)
+
     async def _on_connection_pending(self):
         self._log('Opening connection')
         self._handler.on_connection_pending()
@@ -101,17 +112,24 @@ class Client(Logs, MessageBroker):
         await self._on_connection_pending()
         try:
             async with connect(self._host_url) as websocket:
-                await self._on_connection_opened(websocket)
-                await self._on_connection_initialized(websocket)
-                await self._run_connection(websocket)
+                try:
+                    await self._on_connection_opened(websocket)
+                except Exception as e:
+                    raise ClientConnectionError('Error Initializing') from e
+
+                try:
+                    await self._run_connection(websocket)
+                except Exception as e:
+                    raise ClientConnectionError('Error running connection') from e
+
         except OSError as e:
-            self._log(f"Connection failed", 'critical', e)
-            # raise e
+            self._log_exception('Connection failed')
+            raise e  # any exceptions at this point should kill the program since we have no reconnect loop
         except Exception as e:
-            self._log(f"Connection error", 'critical', e)
-            raise e
+            self._log_exception('Unspecified connection error')
+            raise e  # any exceptions at this point should kill the program since we have no reconnect loop
         finally:
-            # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves)
+            # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves) or an exception happens
             await self._on_connection_closed()
 
     async def _trigger_shutdown(self, sig):
