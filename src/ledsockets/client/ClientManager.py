@@ -139,19 +139,14 @@ class ClientManager(Logs, MessageBroker):
             self._log("Stopped", 'debug')
 
 
-async def main():
+async def run_client():
     MOCK_BOARD = os.getenv('MOCK_BOARD', 'false').lower() == 'true'
-    tasks = []
-
     if MOCK_BOARD:
         board = MockBoard()
-        controller = BoardController(board)
-        tasks.append(asyncio.create_task(controller.run_lite()))
     else:
         board = Board()
 
-    board.status_on()
-    board.status_disconnected()
+    board.run()
 
     handler = ClientHandler(
         board=board,
@@ -160,11 +155,13 @@ async def main():
         host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
         handler=handler
     )
-    tasks.append(asyncio.create_task(server.serve()))
-
-    await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    await server.serve()
 
 
-if __name__ == '__main__':
+def main():
     load_dotenv()
-    asyncio.run(main())
+    asyncio.run(run_client())
+
+
+if __name__ == "__main__":
+    main()
