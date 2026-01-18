@@ -45,7 +45,7 @@ class Client(Logs, MessageBroker):
         self._log('Created', 'debug')
 
     async def send_message(self, message, connection=None):
-        self._log(f"Sending message: {message}")
+        self._log(f"Sending message: {message}", 'debug')
         target = connection if connection else self._connection
         if not target:
             raise Exception('Unable to send message without a target')
@@ -56,18 +56,18 @@ class Client(Logs, MessageBroker):
         if self._shutting_down:
             return
 
-        self._log(f'Server says: {message}  {connection.remote_address}')
+        self._log(f'Server says: {message}  {connection.remote_address}', 'debug')
         await self._handler.on_message(message, connection)
 
     async def _listen(self, connection: ClientConnection):
-        self._log('Listening to connection')
+        self._log('Listening to connection', 'debug')
         async for message in connection:
             try:
                 await self._on_message(message, connection)
             except Exception as e:
                 raise ClientMessageException('Uncaught ClientEventHandler on_message error') from e
-
-        self._log('Server closed the connection', 'info')
+        if not self._shutting_down:
+            self._log('Server closed the connection', 'info')
 
     async def _run_connection(self, connection):
         listen_task = asyncio.create_task(self._listen(connection))
@@ -78,18 +78,19 @@ class Client(Logs, MessageBroker):
         )
         # Re-raise any exceptions
         for t in tasks:
-            self._log(f"Run connection result:{t.result()}", 'info')
+            self._log(f"Run connection result:{t.result()}", 'debug')
 
     async def _on_connection_closed(self):
-        self._log('Processing closed connection')
+        self._log('Processing closed connection', 'debug')
+        # @todo: change named methods to external 'on' method as sole entry point (maybe not...sounds like it would be overloaded)
         self._handler.on_connection_closed(self._connection)
         self._connection = None
 
     async def _do_connection_init(self, connection):
-        self._log('Processing new connection')
+        self._log('Processing new connection', 'debug')
         self._connection = connection
         self._handler.on_connection_open(connection)
-        self._log('Sending init message')
+        self._log('Sending init message', 'debug')
         payload = {
             "type": "init_hardware",
             "relationships": {
@@ -105,7 +106,7 @@ class Client(Logs, MessageBroker):
         self._handler.on_initialized(connection)
 
     async def _on_connection_pending(self):
-        self._log('Opening connection')
+        self._log('Opening connection', 'info')
         self._handler.on_connection_pending()
 
     async def _run_client(self):
@@ -159,7 +160,7 @@ class Client(Logs, MessageBroker):
         finally:
             for sig in signals:
                 loop.remove_signal_handler(sig)
-            self._log("Stopped", 'debug')
+            self._log("Stopped", 'info')
 
 
 async def run_client():
