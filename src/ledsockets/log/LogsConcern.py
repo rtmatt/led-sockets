@@ -22,4 +22,9 @@ class Logs:
         getattr(self._logger, level)(f"{msg}",*args)
 
 
+    def _log_exception(self,message):
+        self.logger.exception(message)
 
+    @property
+    def logger(self):
+        return self._logger
