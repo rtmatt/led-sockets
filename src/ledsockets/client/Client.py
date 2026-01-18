@@ -125,7 +125,7 @@ class Client(Logs, MessageBroker):
     def _handle_sigterm(self, sig):
         asyncio.create_task(self._trigger_shutdown(sig))
 
-    async def start(self):
+    async def run(self):
         self._log(f"Starting (pid {os.getpid()})", 'info')
         loop = asyncio.get_running_loop()
         signals = (signal.SIGINT, signal.SIGTERM)
@@ -151,11 +151,11 @@ async def run_client():
     handler = ClientEventHandler(
         board=board,
     )
-    server = Client(
+    client = Client(
         host_url=os.getenv('HARDWARE_SOCKET_URL', 'ws://localhost:8765'),
         handler=handler
     )
-    await server.start()
+    await client.run()
 
 
 def main():
