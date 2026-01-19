@@ -1,6 +1,6 @@
 # led-sockets
 
-This project allows visitors of a website to turn a blue LED attached to a Raspberry Pi on and off.
+A dumb, overengineered project that allows visitors of a website to turn a blue LED on and off.
 
 # Structure
 * Server: python websocket server that runs on a publicly-accessible webserver
