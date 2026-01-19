@@ -68,7 +68,7 @@ boot and restart if it crashes.
     * `reread`
     * `start processname` where `processname` is the name of the process output from status call
         * if you ever need to restart or stop the process, use `restart processname` or `stop processname`. You'll need
-          to restart the process following any updates to `server.py`
+          to restart the process following any updates to files in the `src/ledsockets` directory
     * `status` to check the status of the process
     * `exit`
 
@@ -103,14 +103,15 @@ supervisor.
     * `reread`
     * `start processname:*` where `processname` is the name of the process output from status call
         * if you ever need to restart or stop the process, use `restart processname` or `stop processname`. You'll need
-          to restart the process following any updates to `server.py`
+          to restart the process following any updates to files in the `src/ledsockets` directory
     * `status` to check the status of the process
     * `exit`
 
 # Web Installation
-* drop the `public/index.html` file into your web root
-* You'll need to modify the websocket URL in the script tag to point to your websocket server
-# TODO: This section requires updating to account for new frontend
+* clone repo `git clone git@github.com:rtmatt/led-sockets.git`
+    * conversely, you can just drop the `dist` directory into your file system
+* configure your webserver to use the `dist` directory as the site root and make sure it loads index.html files
+
 
 # Raspberry Pi Setup
 * Install `gpiozero` library `sudo apt install python3-gpiozero` if it's not already installed
@@ -252,7 +253,42 @@ npm run preview
 ```
 
 ## Deployment
-@TODO full guide. 
-- Need to set supervisor confs to autostart in desired environments
-- Need to restart supervisor queues after code changes
-- (might) need to .venv/bin/pip install -e . again after code changes (I'm thinking not, but think harder)
+### Web
+Update dist files to latest version
+```
+cd <project_root>
+git pull
+```
+Or simply ftp the latest `dist` directory
+### Server
+Get the latest files
+```
+cd <project_root>
+git pull
+```
+Sometimes you may need to reinstall the project package.  You should only need to do this after changes to 
+`pyproject.toml`
+```
+cd <project_root>
+pip install -e .
+```
+If you're using supervisor, restart the queue
+```
+sudo supervisorctl restart led-sockets-server
+```
+### Client
+Get the latest files
+```
+cd <project_root>
+git pull
+```
+Sometimes you may need to reinstall the project package.  You should only need to do this after changes to 
+`pyproject.toml`
+```
+cd <project_root>
+pip install -e .
+```
+If you're using supervisor, restart the queue
+```
+sudo supervisorctl restart led-sockets-client
+```
