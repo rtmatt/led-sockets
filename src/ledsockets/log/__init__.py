@@ -17,7 +17,6 @@ FILE_MODE = "w" if IS_DEVELOPMENT else "a"
 if os.getenv('LOG_FILE_MODE'):
     FILE_MODE = os.getenv('LOG_FILE_MODE')
 
-# @todo: configure base/root logger
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

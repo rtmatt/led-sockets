@@ -24,10 +24,6 @@ class ClientMessageException(Exception):
     pass
 
 
-# # @TODO:
-# # -  [ ] A "reset" button on the board would be neat; resets state and reconnects to server
-# # - [ ] Following the previous, don't end process on a server connection break...sit and wait for button-based reconnect
-
 class Client(Logs, MessageBroker):
     LOGGER_NAME = 'ledsockets.client.manager'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
@@ -86,7 +82,6 @@ class Client(Logs, MessageBroker):
 
     async def _on_connection_closed(self):
         self._log('Processing closed connection', 'debug')
-        # @todo: change named methods to external 'on' method as sole entry point (maybe not...sounds like it would be overloaded)
         self._handler.on_connection_closed(self._connection)
         self._connection = None
 

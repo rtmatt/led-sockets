@@ -2,7 +2,6 @@ from gpiozero import LED, TonalBuzzer, Button
 
 from ledsockets.board.AbstractBoard import AbstractBoard
 
-# TODO: consider extracting pins to env vars
 class Board(AbstractBoard):
     LOGGER_NAME = 'ledsockets.board.physical'
 
@@ -15,8 +14,6 @@ class Board(AbstractBoard):
         self.button = Button(20)
         self.button.when_pressed = self.on_button_press
         self.button.when_released = self.on_button_release
-
-        # @todo: update consumers to have them trigger these:  # self.status_on()  # self.status_disconnected()
 
     def cleanup(self):
         self._log('Cleaning up','debug')

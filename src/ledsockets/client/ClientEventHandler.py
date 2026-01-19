@@ -79,7 +79,6 @@ class ClientEventHandler(Logs):
                 )
             except AttributeError as e:
                 self._log(f'Sending update message failed {e}', 'warning')
-                # @todo: should the physical state reset? or cache/restore
         else:
             self._log("Button press ignored-- button is off", "info")
 
@@ -105,9 +104,6 @@ class ClientEventHandler(Logs):
         match e:
             case ServerMessageException():
                 self._log(f'Ignoring invalid message ({e}): "{message}"', 'info')
-                # @todo: it would be good to add a talkback to the source that the message was bad; however, we don't want to create an infinite pingback on "not JSON" messages
-                # Also, we'll need to add a way to make sure errors from board go to source client and not all clients.  Original payload could contain client id info (or intermediate server could add the client ID)
-                # await self.message_broker.send(f"Message had no effect ({e})")
             case _:
                 raise e
 

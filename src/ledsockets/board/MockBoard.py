@@ -30,7 +30,7 @@ class MockBoard(AbstractBoard):
 
     def __init__(self):
         AbstractBoard.__init__(self)
-        self._log('Starting up')  # @todo: see todo in concrete class  # self.status_on()  # self.status_disconnected()
+        self._log('Starting up')
 
     def cleanup(self):
         self._log('cleaning up')
