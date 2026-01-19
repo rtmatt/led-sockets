@@ -1,52 +1,17 @@
+import {
+  type HardwareStateAttributes,
+  isClientConnectionInitMessage,
+  isHardwareConnectionMessage,
+  isHardwareStateMessage,
+  isSocketMessage,
+  type PatchHardwareState,
+} from './types.ts';
+
 const {
   VITE_WEB_SOCKET_URL,
   VITE_PRODUCTION_WEB_SOCKET_URL,
   PROD,
 } = import.meta.env;
-
-interface SocketMessage {
-  attributes?: Object | null;
-  type: string;
-}
-
-type HardwareStateAttributes = {
-  on: boolean;
-  message: string;
-}
-
-interface HardwareStateMessage extends SocketMessage {
-  attributes: HardwareStateAttributes | null
-  type: 'hardware_state',
-}
-
-interface HardwareConnectionMessage extends SocketMessage {
-  attributes: {
-    is_connected: boolean
-  }
-  relationships: {
-    hardware_state: {
-      data: HardwareStateMessage
-    }
-  }
-  type: 'hardware_connection',
-}
-
-interface ClientConnectionInitMessage extends SocketMessage {
-  attributes: {
-    hardware_is_connected: boolean
-  }
-  relationships: {
-    hardware_state: {
-      data: HardwareStateMessage
-    }
-  }
-  type: 'client_init',
-}
-
-interface PatchHardwareState extends SocketMessage {
-  attributes: Partial<HardwareStateAttributes>;
-  type: 'patch_hardware_state';
-}
 
 export default class LedSockets {
   private elements: {
@@ -168,25 +133,15 @@ export default class LedSockets {
     } catch (error) {
       console.warn(data);
     }
-    // @todo: proper narrowing
-    if (message && typeof message === 'object' && 'type' in message && message.type) {
-      let messageC = message as SocketMessage;
-      let payload;
-      switch (messageC.type) {
-        case 'hardware_state':
-          payload = message as HardwareStateMessage;
-          this.updateState(payload.attributes);
-          break;
-        case 'hardware_connection':
-          payload = message as HardwareConnectionMessage;
-          this.updateState(payload.relationships.hardware_state.data.attributes);
-          this.hardware_state = payload.attributes.is_connected;
-          break;
-        case 'client_init':
-          payload = message as ClientConnectionInitMessage;
-          this.updateState(payload.relationships.hardware_state.data.attributes);
-          this.hardware_state = payload.attributes.hardware_is_connected;
-          break;
+    if (isSocketMessage(message)) {
+      if (isHardwareStateMessage(message)) {
+        this.updateState(message.attributes);
+      } else if (isHardwareConnectionMessage(message)) {
+        this.updateState(message.relationships.hardware_state.data.attributes);
+        this.hardware_state = message.attributes.is_connected;
+      } else if (isClientConnectionInitMessage(message)) {
+        this.updateState(message.relationships.hardware_state.data.attributes);
+        this.hardware_state = message.attributes.hardware_is_connected;
       }
     }
   }
