@@ -48,6 +48,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     """
     LOGGER_NAME = 'ledsockets.server.handler'
     DEFAULT_HARDWARE_STATE = {"on": False}
+    VALID_INIT_TYPES = ['init_client', 'init_hardware']
 
     def __init__(self):
         Logs.__init__(self)
@@ -60,27 +61,11 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     def is_hardware_connected(self):
         return self._hardware_connection is not None
 
-    async def _handle_exception(self, e: Exception, websocket: ServerConnection):
-        match e:
-            case InitPayloadInvalidException():
-                message = str(e)
-                self._log_exception(e)
-                await websocket.send(message)
-            case HardwareAlreadyConnectedException():
-                self._log('Hardware already connected; aborting connection')
-                await websocket.send("Hardware already connected.  Buh bye now.")
-            case InvalidHardwareInitPayloadException():
-                message = f'Hardware Init Error: {e}'
-                self._log_exception(e, message)
-                await websocket.send(message)
-            case HardwareMessageException():
-                self._log_exception(e, f"Ignoring invalid message: {e}")
-                await websocket.send(f"Message had no effect ({e})")
-            case ClientMessageException():
-                self._log_exception(e, f"Ignoring invalid message: {e}")
-                await websocket.send(f"Message had no effect ({e})")
-            case _:
-                raise e
+    async def _handle_client_disconnect(self, client):
+        self._log(f'Client disconnected', 'info')
+        client_id = client.get('id')
+        if client_id and client_id in self._client_connections:
+            del self._client_connections[client_id]
 
     async def _handle_client_message(self, message):
         self._log(f'Client message: {message}')
@@ -107,8 +92,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         async for message in connection:
             try:
                 await self._handle_client_message(message)
-            except Exception as e:
-                await self._handle_exception(e, connection)
+            except ClientMessageException:
+                self._log_exception(f"Ignoring invalid message: {e}")
+                await connection.send(f"Message had no effect ({e})")
 
     async def _init_client_connection(self, client):
         payload = {
@@ -140,17 +126,21 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         return client
 
-    async def _handle_client_disconnect(self, client):
-        self._log(f'Client disconnected')
-        client_id = client.get('id')
-        if client_id and client_id in self._client_connections:
-            del self._client_connections[client_id]
-
     def get_hardware_connection_payload(self):
-        return {"type": "hardware_connection",
-                "attributes": {"is_connected": self._hardware_connection is not None
-                               }, "relationships": {
-                "hardware_state": {"data": {"type": "hardware_state", "attributes": self._hardware_state}}}}
+        return {
+            "type": "hardware_connection",
+            "attributes": {
+                "is_connected": self._hardware_connection is not None
+            },
+            "relationships": {
+                "hardware_state": {
+                    "data": {
+                        "type": "hardware_state",
+                        "attributes": self._hardware_state
+                    }
+                }
+            }
+        }
 
     async def _broadcast_to_clients(self, message):
         if not self._client_connections:
@@ -225,8 +215,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         async for message in connection:
             try:
                 await self._handle_hardware_message(message)
-            except Exception as e:
-                await self._handle_exception(e, connection)
+            except HardwareMessageException() as e:
+                self._log_exception(f"Ignoring invalid message: {e}")
+                await connection.send(f"Message had no effect ({e})")
 
     async def _init_hardware_connection(self, hardware):
         connection = hardware.get('connection')
@@ -263,7 +254,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         try:
             payload = json.loads(init_message)
             payload_type = payload['type']
-            if payload_type not in ['init_client', 'init_hardware']:
+            if payload_type not in self.VALID_INIT_TYPES:
                 raise InitPayloadInvalidException(f'Invalid initialization type "{payload_type}"')
         except json.JSONDecodeError as e:
             raise InitPayloadInvalidException(f'Malformed initialization payload') from e
@@ -292,5 +283,14 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     async def handle(self, websocket: ServerConnection):
         try:
             await self._handle(websocket)
-        except Exception as e:
-            await self._handle_exception(e, websocket)
+        except InitPayloadInvalidException as e:
+            message = str(e)
+            self._log_exception(message)
+            await websocket.send(message)
+        except InvalidHardwareInitPayloadException as e:
+            message = f'Hardware Init Error: {e}'
+            self._log_exception('Hardware Init Error')
+            await websocket.send(message)
+        except HardwareAlreadyConnectedException as e:
+            self._log('Hardware already connected; aborting connection', 'warning')
+            await websocket.send("Hardware already connected.  Buh bye now.")
