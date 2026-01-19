@@ -56,7 +56,7 @@ export function isHardwareStateMessage(message: SocketMessage): message is Hardw
   if (!attributes) {
     return true;
   }
-  return 'on' in attributes && typeof attributes.on == 'boolean' && 'message' in attributes && attributes.message == 'string';
+  return 'on' in attributes && typeof attributes.on == 'boolean' && 'message' in attributes && typeof attributes.message == 'string';
 }
 
 export function isClientConnectionInitMessage(message: SocketMessage): message is ClientConnectionInitMessage {
