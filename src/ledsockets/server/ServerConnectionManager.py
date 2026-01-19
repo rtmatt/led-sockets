@@ -152,6 +152,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
+        # Get all client connections causing an exception; log them as a dead connection
         dead_clients = []
         for client_id, result in zip(client_ids, results):
             if isinstance(result, Exception):
