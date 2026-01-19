@@ -68,7 +68,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             del self._client_connections[client_id]
 
     async def _handle_client_message(self, message):
-        self._log(f'Client message: {message}')
+        self._log(f'Client message: {message}','debug')
 
         try:
             payload = json.loads(message)
@@ -82,7 +82,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         match payload_type:
             case 'patch_hardware_state':
-                self._log('Passing message to hardware')
+                self._log('Passing message to hardware','info')
                 await self._send_message_to_hardware(message)
             case _:
                 raise ClientMessageException(f"Unrecognized message type: \"{payload_type}\"")
@@ -117,7 +117,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         await websocket.send(json.dumps(payload))
 
     def _record_client_connection(self, websocket: ServerConnection):
-        self._log(f'Initializing client from {websocket.remote_address}')
+        self._log(f'Initializing client from {websocket.remote_address}','info')
         client = {
             "id": websocket.id,
             "connection": websocket
@@ -146,7 +146,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         if not self._client_connections:
             return
 
-        self._log(f"Sending message to {len(self._client_connections)} client(s): {message}")
+        self._log(f"Sending message to {len(self._client_connections)} client(s): {message}",'info')
         client_ids = list(self._client_connections.keys())
         tasks = [self._client_connections[cid].get('connection').send(message) for cid in client_ids]
 
@@ -155,13 +155,13 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         dead_clients = []
         for client_id, result in zip(client_ids, results):
             if isinstance(result, Exception):
-                self._log(f'Client {client_id} connection exception: {result}')
+                self._log(f'Client {client_id} connection exception: {result}','warning')
                 dead_clients.append(client_id)
 
         for client_id in dead_clients:
             if client_id and client_id in self._client_connections:
-                self._log(f'Dropping dead client connection {client_id}')
-                # Close the connection just in case it's still active. This will drop any connections we can't successfully send to internally and externally
+                self._log(f'Dropping dead client connection {client_id}','info')
+                # Close the connection just in case it's still active. This will drop any connections we can't successfully send to and remove it from tracking
                 try:
                     connection: ClientConnection | None = self._client_connections.get(client_id)
                     if (connection):
@@ -176,16 +176,16 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             await self._hardware_connection.get('connection').send(message)
 
     async def _handle_hardware_disconnect(self):
-        self._log(f'Hardware disconnected')
+        self._log(f'Hardware disconnected', 'info')
         self._hardware_connection = None
         self._hardware_state = None
 
-        self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)')
+        self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)', 'info')
         payload = self.get_hardware_connection_payload()
         await self._broadcast_to_clients(json.dumps(payload))
 
     async def _handle_hardware_message(self, message):
-        self._log(f'Hardware says: {message}')
+        self._log(f'Hardware says: {message}', 'debug')
 
         try:
             payload = json.loads(message)
@@ -204,7 +204,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             case 'hardware_state':
                 # This is trusting of the hardware client.  However, we trust them more than ourselves to know what their state looks like.  At least for now
                 self._hardware_state = attributes
-                self._log(f"Hardware state updated: {self._hardware_state}")
+                self._log(f"Hardware state updated: {self._hardware_state}",'info')
             case _:
                 raise HardwareMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
@@ -228,7 +228,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         await self._broadcast_to_clients(json.dumps(payload))
 
     def _record_hardware_connection(self, websocket: ServerConnection, payload):
-        self._log(f'Initializing hardware from {websocket.remote_address}')
+        self._log(f'Initializing hardware from {websocket.remote_address}', 'info')
         try:
             payload_type = payload['type']
             is_init = payload_type == 'init_hardware'
@@ -250,7 +250,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
     async def _handle(self, websocket: ServerConnection):
         init_message = await websocket.recv()
-        self._log(f'Init message received: {init_message}')
+        self._log(f'Init message received: {init_message}','debug')
         try:
             payload = json.loads(init_message)
             payload_type = payload['type']
