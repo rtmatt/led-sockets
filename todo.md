@@ -1,6 +1,6 @@
-- [ ] Add status to web-ui (socket server connected, hardware connected)
+- [x] Add status to web-ui (socket server connected, hardware connected)
 - [ ] Add web-UI reflection of hardware state
-- [ ] hide host information from UI codebasest
+- [x] hide host information from UI codebase
 - [ ] reconnect/timeout status
   - [ ] "server-side heartbeats (pings/pongs) to detect dead connections, implementing a smart client-side reconnect/rejoin logic with local data storage for missed messages, and potentially leveraging push notifications for critical alerts"
 - [ ] security
