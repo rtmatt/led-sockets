@@ -26,5 +26,11 @@
 - [ ] ::_on_board_button_press if homebase message fails, reset changes to board state; audit for similar cases
 - [ ] ::_handle_message_exception - introduce talkback between server/client on message errors
  
+# UI Client
+- [ ] Add polling upon connection disconnect to restore connection or reconnect button
+- [ ] Disable checkbox/button when disconnected
+- [ ] proper type narrowing
+- [ ] add ids to json:api objects across full suite
+
 # Misc Python
 - [ ] configure base/root logger
