@@ -38,8 +38,9 @@ export default class LedSockets {
 
   private websocket: WebSocket;
 
+  private abort_controller: AbortController;
+
   constructor() {
-    this.websocket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);
     this.elements = {
       button: document.getElementById('button') as HTMLButtonElement,
       checkbox: document.getElementById('checkbox') as HTMLInputElement,
@@ -52,9 +53,24 @@ export default class LedSockets {
     this.message = '';
     this.status = false;
     this.checkbox_status = false;
-
-    this._addSocketListeners();
     this._addUiListeners();
+
+    const {
+      websocket,
+      abort_controller,
+    } = this.buildConnection();
+    this.websocket = websocket;
+    this.abort_controller = abort_controller;
+  }
+
+  private buildConnection(): { websocket: WebSocket, abort_controller: AbortController } {
+    const websocket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);
+    const abort_controller = new AbortController();
+    this._addSocketListeners(websocket, abort_controller);
+    return {
+      websocket,
+      abort_controller,
+    };
   }
 
   get checkbox_status(): boolean {
@@ -102,12 +118,14 @@ export default class LedSockets {
     this.state.status = status;
   }
 
-  private _addSocketListeners() {
-    // @todo: revise attachment of these to prevent close on page load
-    this.websocket.addEventListener('close', this.onSocketClose.bind(this));
-    this.websocket.addEventListener('error', this.onSocketError.bind(this));
-    this.websocket.addEventListener('message', this.onSocketMessage.bind(this));
-    this.websocket.addEventListener('open', this.onSocketOpen.bind(this));
+  private _addSocketListeners(
+    websocket: WebSocket,
+    abort_controller: AbortController,
+  ) {
+    websocket.addEventListener('close', this.onSocketClose.bind(this, websocket), { signal: abort_controller.signal });
+    websocket.addEventListener('error', this.onSocketError.bind(this, websocket), { signal: abort_controller.signal });
+    websocket.addEventListener('message', this.onSocketMessage.bind(this, websocket), { signal: abort_controller.signal });
+    websocket.addEventListener('open', this.onSocketOpen.bind(this, websocket), { signal: abort_controller.signal });
   }
 
   private _addUiListeners() {
@@ -120,19 +138,32 @@ export default class LedSockets {
     });
   }
 
-  private onSocketClose(e: CloseEvent) {
-    console.error('Socket Closed' + e.reason);
+  private onSocketClose(
+    _websocket: WebSocket,
+    _event: CloseEvent,
+  ) {
+    // console.warn('Socket Closed', _event.reason);
     this.hardware_state = false;
     this.socket_status = 'Closed';
+    // On close, remove all socket listeners just in case
+    this.abort_controller.abort();
   }
 
   private onSocketError(e: Event) {
     console.error('Socket Error', e);
     this.hardware_state = false;
     this.socket_status = 'Error';
+  private onSocketError(
+    _websocket: WebSocket,
+    _event: Event,
+  ) {
+    // console.error('Socket Error');
   }
 
-  private onSocketMessage(event: MessageEvent) {
+  private onSocketMessage(
+    _websocket: WebSocket,
+    event: MessageEvent,
+  ) {
     const { data } = event;
     let message: unknown;
     try {
@@ -153,9 +184,12 @@ export default class LedSockets {
     }
   }
 
-  private onSocketOpen() {
+  private onSocketOpen(
+    websocket: WebSocket,
+    _event: Event
+  ) {
     this.socket_status = 'Open';
-    this.websocket.send(
+    websocket.send(
       JSON.stringify({
         id: '',
         type: 'init_client',
