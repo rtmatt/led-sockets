@@ -50,7 +50,7 @@ class Server(Logs):
         except (ConnectionClosedOK, ConnectionClosedError):
             pass
         except Exception as e:
-            self._log('Error in connection handler','error')
+            self._log('Error in connection handler', 'error')
             # Raise exception so it can be handled by context manager
             raise e
         finally:
@@ -90,7 +90,7 @@ class Server(Logs):
         self._shutting_down = True
         self._stop_event.set()
 
-    def _handle_sigterm(self,sig):
+    def _handle_sigterm(self, sig):
         self._trigger_shutdown(sig)
 
     async def serve(self):
