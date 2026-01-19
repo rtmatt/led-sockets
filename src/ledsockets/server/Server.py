@@ -50,7 +50,9 @@ class Server(Logs):
         except (ConnectionClosedOK, ConnectionClosedError):
             pass
         except Exception as e:
-            self._log(f"Exception unhandled by Handler: {e}")
+            self._log('Error in connection handler','error')
+            # Raise exception so it can be handled by context manager
+            raise e
         finally:
             self._record_disconnect(websocket)
 
@@ -63,7 +65,7 @@ class Server(Logs):
                 await websocket.send(self.SHUTDOWN_PAYLOAD)
                 await websocket.close(self.CLOSE_CODE)
         except Exception:
-            pass
+            self._log_exception('Exception during client disconnect')
 
     async def _disconnect_all(self):
         if self._connections:
@@ -84,8 +86,8 @@ class Server(Logs):
         if self._shutting_down:
             self._log(f"Already shutting down (received {sig.name})...")
             return
+        self._log(f'[{sig.name}] Triggering shutdown', 'info')
         self._shutting_down = True
-        self._log(f"Shutting down (received {sig.name})...")
         self._stop_event.set()
 
     def _handle_sigterm(self,sig):
