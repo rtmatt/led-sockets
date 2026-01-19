@@ -7,6 +7,7 @@ export default defineConfig({
     outDir: '../dist'
   },
   root: 'src',
+  envDir:'../',
   publicDir: '../public',
   resolve: {
     alias: { '/src': path.resolve(process.cwd(), 'src') }
