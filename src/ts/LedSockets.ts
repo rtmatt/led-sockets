@@ -1,13 +1,12 @@
 const {
-
   VITE_WEB_SOCKET_URL,
   VITE_PRODUCTION_WEB_SOCKET_URL,
   PROD,
 } = import.meta.env;
 
 interface SocketMessage {
-  type: string;
   attributes?: Object | null;
+  type: string;
 }
 
 type HardwareStateAttributes = {
@@ -16,12 +15,11 @@ type HardwareStateAttributes = {
 }
 
 interface HardwareStateMessage extends SocketMessage {
-  type: 'hardware_state',
   attributes: HardwareStateAttributes | null
+  type: 'hardware_state',
 }
 
 interface HardwareConnectionMessage extends SocketMessage {
-  type: 'hardware_connection',
   attributes: {
     is_connected: boolean
   }
@@ -30,10 +28,10 @@ interface HardwareConnectionMessage extends SocketMessage {
       data: HardwareStateMessage
     }
   }
+  type: 'hardware_connection',
 }
 
 interface ClientConnectionInitMessage extends SocketMessage {
-  type: 'client_init',
   attributes: {
     hardware_is_connected: boolean
   }
@@ -42,50 +40,98 @@ interface ClientConnectionInitMessage extends SocketMessage {
       data: HardwareStateMessage
     }
   }
+  type: 'client_init',
 }
 
 interface PatchHardwareState extends SocketMessage {
-  type: 'patch_hardware_state';
   attributes: Partial<HardwareStateAttributes>;
+  type: 'patch_hardware_state';
 }
 
 export default class LedSockets {
-  private button: HTMLButtonElement;
-
-  private checkbox: HTMLInputElement;
-
-  private messageContainer: HTMLElement;
+  private elements: {
+    button: HTMLButtonElement;
+    checkbox: HTMLInputElement;
+    messageContainer: HTMLElement;
+    socketStatusContainer: HTMLElement;
+    hardwareStatusContainer: HTMLElement;
+  };
 
   private state: {
     socket: string;
     status: boolean;
-    hardware: boolean
+    hardware: boolean;
+    message: string
+    checkbox: boolean
   } = {
     socket: 'disconnected',
     status: false,
     hardware: false,
+    message: '',
+    checkbox: false,
   };
-
-  private statusContainer: HTMLElement;
-
-  private hardwareStatusContainer: HTMLElement;
 
   private websocket: WebSocket;
 
   constructor() {
     this.websocket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);
-    this.button = document.getElementById('button') as HTMLButtonElement;
-    this.checkbox = document.getElementById('checkbox') as HTMLInputElement;
-    this.messageContainer = document.getElementById('message-container') as HTMLElement;
-    this.statusContainer = document.getElementById('status') as HTMLElement;
-    this.hardwareStatusContainer = document.getElementById('hStatus') as HTMLElement;
+    this.elements = {
+      button: document.getElementById('button') as HTMLButtonElement,
+      checkbox: document.getElementById('checkbox') as HTMLInputElement,
+      messageContainer: document.getElementById('message-container') as HTMLElement,
+      socketStatusContainer: document.getElementById('status') as HTMLElement,
+      hardwareStatusContainer: document.getElementById('hStatus') as HTMLElement,
+    };
     this._addSocketListeners();
     this._addUiListeners();
   }
 
+  get checkbox_status(): boolean {
+    return this.state.checkbox;
+  }
+
+  set checkbox_status(status: boolean) {
+    this.state.checkbox = status;
+    this.elements.checkbox.checked = status;
+  }
+
+  get hardware_state() {
+    return this.state.hardware;
+  }
+
+  set hardware_state(connected: boolean) {
+    this.state.hardware = connected;
+    this.elements.hardwareStatusContainer.innerText = connected ? 'Connected' : 'Disconnected';
+  }
+
+  get message(): string {
+    return this.state.socket;
+  }
+
+  set message(message: string) {
+    this.state.message = message;
+    this.elements.messageContainer.innerText = message;
+  }
+
+  get socket_status(): string {
+    return this.state.socket;
+  }
+
+  set socket_status(status: string) {
+    this.state.socket = status;
+    this.elements.socketStatusContainer.innerText = status;
+  }
+
+  get status(): boolean {
+    return this.state.status;
+  }
+
+  set status(status: boolean) {
+    this.state.status = status;
+  }
+
   private _addSocketListeners() {
     // @todo: revise attachment of these to prevent close on page load
-
     this.websocket.addEventListener('close', this.onSocketClose.bind(this));
     this.websocket.addEventListener('error', this.onSocketError.bind(this));
     this.websocket.addEventListener('message', this.onSocketMessage.bind(this));
@@ -93,26 +139,25 @@ export default class LedSockets {
   }
 
   private _addUiListeners() {
-    this.button.addEventListener('click', () => {
-      let is_on = !this.state.status;
+    this.elements.button.addEventListener('click', () => {
       const payload: PatchHardwareState = {
         type: 'patch_hardware_state',
-        attributes: { on: is_on },
+        attributes: { on: !this.state.status },
       };
       this.websocket.send(JSON.stringify(payload));
     });
   }
 
   private onSocketClose(e: CloseEvent) {
-    console.error("Socket Closed"+e.reason);
-    this.updateHardwareStatus(false);
-    this.updateSocketStatus('Closed');
+    console.error('Socket Closed' + e.reason);
+    this.hardware_state = false;
+    this.socket_status = 'Closed';
   }
 
   private onSocketError(e: Event) {
-    console.error("Socket Error",e);
-    this.updateHardwareStatus(false);
-    this.updateSocketStatus('Error');
+    console.error('Socket Error', e);
+    this.hardware_state = false;
+    this.socket_status = 'Error';
   }
 
   private onSocketMessage(event: MessageEvent) {
@@ -135,35 +180,25 @@ export default class LedSockets {
         case 'hardware_connection':
           payload = message as HardwareConnectionMessage;
           this.updateState(payload.relationships.hardware_state.data.attributes);
-          this.updateHardwareStatus(payload.attributes.is_connected);
+          this.hardware_state = payload.attributes.is_connected;
           break;
         case 'client_init':
           payload = message as ClientConnectionInitMessage;
           this.updateState(payload.relationships.hardware_state.data.attributes);
-          this.updateHardwareStatus(payload.attributes.hardware_is_connected);
+          this.hardware_state = payload.attributes.hardware_is_connected;
           break;
       }
     }
   }
 
   private onSocketOpen() {
-    this.updateSocketStatus('Open');
+    this.socket_status = 'Open';
     this.websocket.send(
       JSON.stringify({
         id: '',
         type: 'init_client',
       }),
     );
-  }
-
-  private updateSocketStatus(status: string) {
-    this.state.socket = status;
-    this.statusContainer.innerText = status;
-  }
-
-  private updateHardwareStatus(connected: boolean) {
-    this.state.hardware = connected;
-    this.hardwareStatusContainer.innerText = connected ? 'Connected' : 'Disconnected';
   }
 
   private updateState(
@@ -176,8 +211,8 @@ export default class LedSockets {
       on: false,
       message: '',
     };
-    this.state.status = on;
-    this.checkbox.checked = on;
-    this.messageContainer.innerText = message
+    this.status = on;
+    this.checkbox_status = on;
+    this.message = message;
   }
 }
