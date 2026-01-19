@@ -1,8 +1,3 @@
-/* TODO:
-- [ ] Disable checkbox/button when disconnected
-- [ ] proper type narrowing
-- [ ] add ids to json:api objects across full suite
-*/
 const {
 
   VITE_WEB_SOCKET_URL,
@@ -54,8 +49,6 @@ interface PatchHardwareState extends SocketMessage {
   attributes: Partial<HardwareStateAttributes>;
 }
 
-/* TODO:
-*   - [ ] Add polling upon connection disconnect to restore connection or reconnect button*/
 export default class LedSockets {
   private button: HTMLButtonElement;
 
