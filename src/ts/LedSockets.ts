@@ -149,10 +149,6 @@ export default class LedSockets {
     this.abort_controller.abort();
   }
 
-  private onSocketError(e: Event) {
-    console.error('Socket Error', e);
-    this.hardware_state = false;
-    this.socket_status = 'Error';
   private onSocketError(
     _websocket: WebSocket,
     _event: Event,
@@ -186,7 +182,7 @@ export default class LedSockets {
 
   private onSocketOpen(
     websocket: WebSocket,
-    _event: Event
+    _event: Event,
   ) {
     this.socket_status = 'Open';
     websocket.send(
