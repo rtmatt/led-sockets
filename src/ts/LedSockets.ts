@@ -29,7 +29,7 @@ export default class LedSockets {
     message: string
     checkbox: boolean
   } = {
-    socket: 'disconnected',
+    socket: 'Closed',
     status: false,
     hardware: false,
     message: '',
@@ -47,6 +47,12 @@ export default class LedSockets {
       socketStatusContainer: document.getElementById('status') as HTMLElement,
       hardwareStatusContainer: document.getElementById('hStatus') as HTMLElement,
     };
+    this.socket_status = 'Attempting to connect';
+    this.hardware_state = false;
+    this.message = '';
+    this.status = false;
+    this.checkbox_status = false;
+
     this._addSocketListeners();
     this._addUiListeners();
   }
@@ -67,6 +73,7 @@ export default class LedSockets {
   set hardware_state(connected: boolean) {
     this.state.hardware = connected;
     this.elements.hardwareStatusContainer.innerText = connected ? 'Connected' : 'Disconnected';
+    this.elements.button.disabled = !connected;
   }
 
   get message(): string {
