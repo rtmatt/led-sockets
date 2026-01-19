@@ -9,7 +9,7 @@ from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 
 from ledsockets.log.LogsConcern import Logs
-from ledsockets.server.ServerManager import ServerManager
+from ledsockets.server.ServerConnectionManager import ServerConnectionManager, AbstractServerConnectionManager
 
 
 class Server(Logs):
@@ -22,11 +22,11 @@ class Server(Logs):
     CLOSE_CODE = 1001
     KILL_MESSAGE = 'K byeeeeeeeeeeeeeeeeeee'
 
-    def __init__(self, host: str, port: int, handler):
+    def __init__(self, host: str, port: int, connection_manager: AbstractServerConnectionManager):
         Logs.__init__(self)
         self._host = host
         self._port = port
-        self._handler = handler
+        self._connection_manager: AbstractServerConnectionManager = connection_manager
         self._stop_event = asyncio.Event()
         self._shutting_down = False
         self._connections = set()
@@ -46,7 +46,7 @@ class Server(Logs):
     async def _handle_connection(self, websocket):
         self._record_connection(websocket)
         try:
-            await self._handler.handle(websocket)
+            await self._connection_manager.handle(websocket)
         except (ConnectionClosedOK, ConnectionClosedError):
             pass
         except Exception as e:
@@ -111,7 +111,7 @@ async def run_server():
     server = Server(
         host=os.getenv('ECHO_SERVER_HOST', '0.0.0.0'),
         port=int(os.getenv('ECHO_SERVER_PORT', '8765')),
-        handler=ServerManager()
+        connection_manager=ServerConnectionManager()
     )
 
     await server.serve()

@@ -1,5 +1,6 @@
 import asyncio
 import json
+from abc import ABC, abstractmethod
 
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
@@ -32,9 +33,15 @@ class ClientMessageException(Exception):
     pass
 
 
+class AbstractServerConnectionManager(ABC):
+    @abstractmethod
+    def handle(self, connection: ServerConnection):
+        pass
+
+
 # TODO:
 # - [ ] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
-class ServerManager(Logs):
+class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     """
     Manages business logic for a Server
     Handles connection management, routing and other business logic
@@ -81,7 +88,7 @@ class ServerManager(Logs):
             case _:
                 raise e
 
-    async def handle(self, websocket):
+    async def handle(self, websocket: ServerConnection):
         try:
             await self._handle(websocket)
         except Exception as e:
