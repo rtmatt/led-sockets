@@ -36,7 +36,7 @@ export default class LedSockets {
     checkbox: false,
   };
 
-  private websocket: WebSocket;
+  private websocket: WebSocket | null;
 
   private abort_controller: AbortController;
 
@@ -130,11 +130,15 @@ export default class LedSockets {
 
   private _addUiListeners() {
     this.elements.button.addEventListener('click', () => {
-      const payload: PatchHardwareState = {
-        type: 'patch_hardware_state',
-        attributes: { on: !this.state.status },
-      };
-      this.websocket.send(JSON.stringify(payload));
+      if (this.websocket) {
+        const payload: PatchHardwareState = {
+          type: 'patch_hardware_state',
+          attributes: { on: !this.state.status },
+        };
+        this.websocket.send(JSON.stringify(payload));
+      } else {
+        throw Error('No active connection');
+      }
     });
   }
 
