@@ -16,11 +16,11 @@ This project allows visitors of a website to turn a blue LED attached to a Raspb
 * Web
     * A webserver that can serve html files
 
-# Server Setup
+# Server Installation
 ## Base Installation
 * clone repo `git clone git@github.com:rtmatt/led-sockets.git`
 * within directory (`cd led-sockets`)...
-* set env `cp.env.example .env` (modify as needed). It's recommended to set the `ECHO_SERVER_HOST` to `localhost`
+* set env `cp .env.example .env` (modify as needed). It's recommended to set the `ECHO_SERVER_HOST` to `localhost`
   in production environments
 * activate virtualenv `python -m venv .venv`
     * activate it `source .venv/bin/activate`
@@ -66,17 +66,18 @@ boot and restart if it crashes.
 * run supervisor
     * `sudo supervisorctl`
     * `reread`
-    * `start processname` where `processname` is the name of the process output from status call
-        * if you ever need to restart or stop the process, use `restart processname` or `stop processname`. You'll need
-          to restart the process following any updates to files in the `src/ledsockets` directory
-    * `status` to check the status of the process
+    * `add led-sockets-server`
+    * `status`
+      * The process should have started automatically
+          * if you ever need to restart or stop the process, use `restart led-sockets-server` or `stop led-sockets-server`. You'll need
+            to restart the process following any updates to files in the `src/ledsockets` directory
     * `exit`
 
 # Client Installation
 ## Base Installation
 * clone repo `git clone git@github.com:rtmatt/led-sockets.git`
-* set env `cp.env.example .env`. Set `HARDWARE_SOCKET_URL` to the URL of your websocket server (modify as needed)
-* create virtualenv `python -m  venv venv --system-site-packages`
+* set env `cp .env.example .env`. Set `HARDWARE_SOCKET_URL` to the URL of your websocket server (modify as needed)
+* create virtualenv `python -m  venv .venv --system-site-packages`
     * activate it `source .venv/bin/activate`
 * install dependencies `pip install -r requirements.txt`
 * load editable package `pip install -e .`
@@ -94,15 +95,16 @@ supervisor.
 * install supervisor if it's not installed already `sudo apt install supervisor`
 * create a config file
   `sudo cp resources/supervisor/led-sockets-client.conf.example /etc/supervisor/conf.d/led-sockets-client.conf`
-    * edit the file `/etc/supervisor/conf.d/led-sockets-client.conf` to set the `directory` and `stdout_logfile` values
-      using the proper absolute paths
+    * edit the file `sudo nano /etc/supervisor/conf.d/led-sockets-client.conf` to set the `command`, `directory` and 
+      `stdout_logfile` values using the appropriate absolute paths
     * Note: `autostart` is set to false by default to prevent the program from starting every time the pi reboots.
       Change this if desired.
 * run supervisor
     * `sudo supervisorctl`
     * `reread`
-    * `start processname:*` where `processname` is the name of the process output from status call
-        * if you ever need to restart or stop the process, use `restart processname` or `stop processname`. You'll need
+    * `add led-sockets-client`
+    * `start led-sockets-client`
+        * if you ever need to restart or stop the process, use `restart led-sockets-client` or `stop led-sockets-client`. You'll need
           to restart the process following any updates to files in the `src/ledsockets` directory
     * `status` to check the status of the process
     * `exit`
