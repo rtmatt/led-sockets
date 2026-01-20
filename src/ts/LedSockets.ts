@@ -1,128 +1,226 @@
-/* TODO:
-- [ ] Disable checkbox/button when disconnected
-- [ ] proper type narrowing
-- [ ] add ids to json:api objects across full suite
-*/
-const {
+import {
+  type HardwareStateAttributes,
+  isClientConnectionInitMessage,
+  isHardwareConnectionMessage,
+  isHardwareStateMessage,
+  isSocketMessage,
+  type PatchHardwareState,
+} from './types.ts';
 
+const {
   VITE_WEB_SOCKET_URL,
   VITE_PRODUCTION_WEB_SOCKET_URL,
   PROD,
 } = import.meta.env;
 
-interface SocketMessage {
-  type: string;
-  attributes?: Object | null;
-}
-
-type HardwareStateAttributes = {
-  on: boolean;
-  message: string;
-}
-
-interface HardwareStateMessage extends SocketMessage {
-  type: 'hardware_state',
-  attributes: HardwareStateAttributes | null
-}
-
-interface HardwareConnectionMessage extends SocketMessage {
-  type: 'hardware_connection',
-  attributes: {
-    is_connected: boolean
-  }
-  relationships: {
-    hardware_state: {
-      data: HardwareStateMessage
-    }
-  }
-}
-
-interface ClientConnectionInitMessage extends SocketMessage {
-  type: 'client_init',
-  attributes: {
-    hardware_is_connected: boolean
-  }
-  relationships: {
-    hardware_state: {
-      data: HardwareStateMessage
-    }
-  }
-}
-
-interface PatchHardwareState extends SocketMessage {
-  type: 'patch_hardware_state';
-  attributes: Partial<HardwareStateAttributes>;
-}
-
-/* TODO:
-*   - [ ] Add polling upon connection disconnect to restore connection or reconnect button*/
 export default class LedSockets {
-  private button: HTMLButtonElement;
-
-  private checkbox: HTMLInputElement;
-
-  private messageContainer: HTMLElement;
+  private elements: {
+    button: HTMLButtonElement;
+    checkbox: HTMLInputElement;
+    messageContainer: HTMLElement;
+    socketStatusContainer: HTMLElement;
+    hardwareStatusContainer: HTMLElement;
+    reconnect: HTMLElement
+  };
 
   private state: {
     socket: string;
     status: boolean;
-    hardware: boolean
+    hardware: boolean;
+    message: string
+    checkbox: boolean
   } = {
-    socket: 'disconnected',
+    socket: 'Closed',
     status: false,
     hardware: false,
+    message: '',
+    checkbox: false,
   };
 
-  private statusContainer: HTMLElement;
+  private websocket: WebSocket | null;
 
-  private hardwareStatusContainer: HTMLElement;
+  private abort_controller: AbortController;
 
-  private websocket: WebSocket;
+  private is_connecting: boolean = false;
 
   constructor() {
-    this.websocket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);
-    this.button = document.getElementById('button') as HTMLButtonElement;
-    this.checkbox = document.getElementById('checkbox') as HTMLInputElement;
-    this.messageContainer = document.getElementById('message-container') as HTMLElement;
-    this.statusContainer = document.getElementById('status') as HTMLElement;
-    this.hardwareStatusContainer = document.getElementById('hStatus') as HTMLElement;
-    this._addSocketListeners();
+    this.elements = {
+      button: document.getElementById('button') as HTMLButtonElement,
+      checkbox: document.getElementById('checkbox') as HTMLInputElement,
+      messageContainer: document.getElementById('message-container') as HTMLElement,
+      socketStatusContainer: document.getElementById('status') as HTMLElement,
+      hardwareStatusContainer: document.getElementById('hStatus') as HTMLElement,
+      reconnect: document.getElementById('rbutton') as HTMLButtonElement,
+    };
+    this.socket_status = 'Attempting to connect';
+    this.hardware_state = false;
+    this.message = '';
+    this.status = false;
+    this.checkbox_status = false;
     this._addUiListeners();
-  }
 
-  private _addSocketListeners() {
-    // @todo: revise attachment of these to prevent close on page load
+    const {
+      websocket,
+      abort_controller,
+    } = this.buildConnection();
+    this.websocket = websocket;
+    this.abort_controller = abort_controller;
 
-    this.websocket.addEventListener('close', this.onSocketClose.bind(this));
-    this.websocket.addEventListener('error', this.onSocketError.bind(this));
-    this.websocket.addEventListener('message', this.onSocketMessage.bind(this));
-    this.websocket.addEventListener('open', this.onSocketOpen.bind(this));
-  }
-
-  private _addUiListeners() {
-    this.button.addEventListener('click', () => {
-      let is_on = !this.state.status;
-      const payload: PatchHardwareState = {
-        type: 'patch_hardware_state',
-        attributes: { on: is_on },
-      };
-      this.websocket.send(JSON.stringify(payload));
+    window.addEventListener('pagehide', () => {
+      if (this.websocket) {
+        this.websocket.close();
+      }
+      this.websocket = null;
+    });
+    window.addEventListener('pageshow', (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        if (this.websocket_is_connected || this.is_connecting) {
+          return;
+        }
+        this.reconnect();
+      }
     });
   }
 
-  private onSocketClose(e: CloseEvent) {
-    console.error("Socket Closed"+e.reason);
-    this.updateHardwareStatus(false);
-    this.updateSocketStatus('Closed');
+  get websocket_is_connected(): boolean {
+    return !!this.websocket && this.websocket.readyState === WebSocket.OPEN;
   }
 
-  private onSocketError(e: Event) {
-    console.error("Socket Error",e);
-    this.updateHardwareStatus(false);
-    this.updateSocketStatus('Error');
+  private log(...args: any) {
+    if (!PROD) {
+      console.log(...args);
+    }
   }
 
-  private onSocketMessage(event: MessageEvent) {
+  private buildConnection(): { websocket: WebSocket, abort_controller: AbortController } {
+    this.log('Connecting');
+    this.is_connecting = true;
+    if (this.websocket) {
+      if (this.websocket.readyState !== this.websocket.CLOSED) {
+        console.warn('Build connection called with open socket');
+      }
+      if (this.abort_controller) {
+        this.log('Removing existing socket listeners');
+        this.abort_controller.abort();
+      }
+      this.websocket.close();
+    }
+    const websocket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);
+    const abort_controller = new AbortController();
+    this._addSocketListeners(websocket, abort_controller);
+    return {
+      websocket,
+      abort_controller,
+    };
+  }
+
+  private reconnect() {
+    this.log('Reconnecting');
+    this.elements.reconnect.hidden = true;
+    const {
+      websocket,
+      abort_controller,
+    } = this.buildConnection();
+    this.websocket = websocket;
+    this.abort_controller = abort_controller;
+  }
+
+  get checkbox_status(): boolean {
+    return this.state.checkbox;
+  }
+
+  set checkbox_status(status: boolean) {
+    this.state.checkbox = status;
+    this.elements.checkbox.checked = status;
+  }
+
+  get hardware_state() {
+    return this.state.hardware;
+  }
+
+  set hardware_state(connected: boolean) {
+    this.state.hardware = connected;
+    this.elements.hardwareStatusContainer.innerText = connected ? 'Connected' : 'Disconnected';
+    this.elements.button.disabled = !connected;
+  }
+
+  get message(): string {
+    return this.state.socket;
+  }
+
+  set message(message: string) {
+    this.state.message = message;
+    this.elements.messageContainer.innerText = message;
+  }
+
+  get socket_status(): string {
+    return this.state.socket;
+  }
+
+  set socket_status(status: string) {
+    this.state.socket = status;
+    this.elements.socketStatusContainer.innerText = status;
+  }
+
+  get status(): boolean {
+    return this.state.status;
+  }
+
+  set status(status: boolean) {
+    this.state.status = status;
+  }
+
+  private _addSocketListeners(
+    websocket: WebSocket,
+    abort_controller: AbortController,
+  ) {
+    websocket.addEventListener('close', this.onSocketClose.bind(this, websocket), { signal: abort_controller.signal });
+    websocket.addEventListener('error', this.onSocketError.bind(this, websocket), { signal: abort_controller.signal });
+    websocket.addEventListener('message', this.onSocketMessage.bind(this, websocket), { signal: abort_controller.signal });
+    websocket.addEventListener('open', this.onSocketOpen.bind(this, websocket), { signal: abort_controller.signal });
+  }
+
+  private _addUiListeners() {
+    this.elements.button.addEventListener('click', () => {
+      if (this.websocket) {
+        const payload: PatchHardwareState = {
+          type: 'patch_hardware_state',
+          attributes: { on: !this.state.status },
+        };
+        this.websocket.send(JSON.stringify(payload));
+      } else {
+        throw Error('No active connection');
+      }
+    });
+    this.elements.reconnect.addEventListener('click', () => {
+      this.reconnect();
+    });
+  }
+
+  private onSocketClose(
+    _websocket: WebSocket,
+    _event: CloseEvent,
+  ) {
+    this.is_connecting = false;
+    this.log(`Socket closed: ${_event.reason}`);
+    this.hardware_state = false;
+    this.socket_status = 'Closed';
+    this.elements.reconnect.hidden = false;
+    // On close, remove all socket listeners just in case
+    this.abort_controller.abort();
+  }
+
+  private onSocketError(
+    _websocket: WebSocket,
+    _event: Event,
+  ) {
+    this.log('Socket Error', _event);
+  }
+
+  private onSocketMessage(
+    _websocket: WebSocket,
+    event: MessageEvent,
+  ) {
     const { data } = event;
     let message: unknown;
     try {
@@ -130,47 +228,32 @@ export default class LedSockets {
     } catch (error) {
       console.warn(data);
     }
-    // @todo: proper narrowing
-    if (message && typeof message === 'object' && 'type' in message && message.type) {
-      let messageC = message as SocketMessage;
-      let payload;
-      switch (messageC.type) {
-        case 'hardware_state':
-          payload = message as HardwareStateMessage;
-          this.updateState(payload.attributes);
-          break;
-        case 'hardware_connection':
-          payload = message as HardwareConnectionMessage;
-          this.updateState(payload.relationships.hardware_state.data.attributes);
-          this.updateHardwareStatus(payload.attributes.is_connected);
-          break;
-        case 'client_init':
-          payload = message as ClientConnectionInitMessage;
-          this.updateState(payload.relationships.hardware_state.data.attributes);
-          this.updateHardwareStatus(payload.attributes.hardware_is_connected);
-          break;
+    if (isSocketMessage(message)) {
+      if (isHardwareStateMessage(message)) {
+        this.updateState(message.attributes);
+      } else if (isHardwareConnectionMessage(message)) {
+        this.updateState(message.relationships.hardware_state.data.attributes);
+        this.hardware_state = message.attributes.is_connected;
+      } else if (isClientConnectionInitMessage(message)) {
+        this.updateState(message.relationships.hardware_state.data.attributes);
+        this.hardware_state = message.attributes.hardware_is_connected;
       }
     }
   }
 
-  private onSocketOpen() {
-    this.updateSocketStatus('Open');
-    this.websocket.send(
+  private onSocketOpen(
+    websocket: WebSocket,
+    _event: Event,
+  ) {
+    this.log('Connected');
+    this.is_connecting = false;
+    this.socket_status = 'Open';
+    websocket.send(
       JSON.stringify({
         id: '',
         type: 'init_client',
       }),
     );
-  }
-
-  private updateSocketStatus(status: string) {
-    this.state.socket = status;
-    this.statusContainer.innerText = status;
-  }
-
-  private updateHardwareStatus(connected: boolean) {
-    this.state.hardware = connected;
-    this.hardwareStatusContainer.innerText = connected ? 'Connected' : 'Disconnected';
   }
 
   private updateState(
@@ -183,8 +266,8 @@ export default class LedSockets {
       on: false,
       message: '',
     };
-    this.state.status = on;
-    this.checkbox.checked = on;
-    this.messageContainer.innerText = message
+    this.status = on;
+    this.checkbox_status = on;
+    this.message = message;
   }
 }
