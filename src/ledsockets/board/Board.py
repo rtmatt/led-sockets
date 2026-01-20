@@ -1,3 +1,5 @@
+import os
+
 from gpiozero import LED, TonalBuzzer, Button
 
 from ledsockets.board.AbstractBoard import AbstractBoard
@@ -7,11 +9,11 @@ class Board(AbstractBoard):
 
     def __init__(self):
         AbstractBoard.__init__(self)
-        self.green_led = LED(17)
-        self.blue_led = LED(12)
-        self.red_led = LED(21)
-        self.buzzer = TonalBuzzer(26, octaves=2)
-        self.button = Button(20)
+        self.green_led = LED(os.getenv('PIN_GREEN_LED', 16))
+        self.blue_led = LED(os.getenv('PIN_BLUE_LED', 20))
+        self.red_led = LED(os.getenv('PIN_RED_LED', 21))
+        self.buzzer = TonalBuzzer(os.getenv('PIN_BUZZER', 12), octaves=2)
+        self.button = Button(os.getenv('PIN_BUTTON', 26))
         self.button.when_pressed = self.on_button_press
         self.button.when_released = self.on_button_release
 
