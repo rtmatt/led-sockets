@@ -65,6 +65,21 @@ export default class LedSockets {
     } = this.buildConnection();
     this.websocket = websocket;
     this.abort_controller = abort_controller;
+
+    window.addEventListener('pagehide', () => {
+      if (this.websocket) {
+        this.websocket.close();
+      }
+      this.websocket = null;
+    });
+    window.addEventListener('pageshow', (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        if (this.websocket_is_connected || this.is_connecting) {
+          return;
+        }
+        this.reconnect();
+      }
+    });
   }
 
   get websocket_is_connected(): boolean {
