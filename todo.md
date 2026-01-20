@@ -14,7 +14,7 @@
 - [x] create and document unified development environment
 
 # Board
-- [ ] consider extracting pins to env vars
+- [x] consider extracting pins to env vars
 - [ ] A "reset" button on the board would be neat; resets state and reconnects to server
 
 # Server
