@@ -20,6 +20,7 @@ export default class LedSockets {
     messageContainer: HTMLElement;
     socketStatusContainer: HTMLElement;
     hardwareStatusContainer: HTMLElement;
+    reconnect: HTMLElement
   };
 
   private state: {
@@ -40,6 +41,8 @@ export default class LedSockets {
 
   private abort_controller: AbortController;
 
+  private is_connecting: boolean = false;
+
   constructor() {
     this.elements = {
       button: document.getElementById('button') as HTMLButtonElement,
@@ -47,6 +50,7 @@ export default class LedSockets {
       messageContainer: document.getElementById('message-container') as HTMLElement,
       socketStatusContainer: document.getElementById('status') as HTMLElement,
       hardwareStatusContainer: document.getElementById('hStatus') as HTMLElement,
+      reconnect: document.getElementById('rbutton') as HTMLButtonElement,
     };
     this.socket_status = 'Attempting to connect';
     this.hardware_state = false;
@@ -63,7 +67,29 @@ export default class LedSockets {
     this.abort_controller = abort_controller;
   }
 
+  get websocket_is_connected(): boolean {
+    return !!this.websocket && this.websocket.readyState === WebSocket.OPEN;
+  }
+
+  private log(...args: any) {
+    if (!PROD) {
+      console.log(...args);
+    }
+  }
+
   private buildConnection(): { websocket: WebSocket, abort_controller: AbortController } {
+    this.log('Connecting');
+    this.is_connecting = true;
+    if (this.websocket) {
+      if (this.websocket.readyState !== this.websocket.CLOSED) {
+        console.warn('Build connection called with open socket');
+      }
+      if (this.abort_controller) {
+        this.log('Removing existing socket listeners');
+        this.abort_controller.abort();
+      }
+      this.websocket.close();
+    }
     const websocket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);
     const abort_controller = new AbortController();
     this._addSocketListeners(websocket, abort_controller);
@@ -71,6 +97,17 @@ export default class LedSockets {
       websocket,
       abort_controller,
     };
+  }
+
+  private reconnect() {
+    this.log('Reconnecting');
+    this.elements.reconnect.hidden = true;
+    const {
+      websocket,
+      abort_controller,
+    } = this.buildConnection();
+    this.websocket = websocket;
+    this.abort_controller = abort_controller;
   }
 
   get checkbox_status(): boolean {
@@ -140,15 +177,20 @@ export default class LedSockets {
         throw Error('No active connection');
       }
     });
+    this.elements.reconnect.addEventListener('click', () => {
+      this.reconnect();
+    });
   }
 
   private onSocketClose(
     _websocket: WebSocket,
     _event: CloseEvent,
   ) {
-    // console.warn('Socket Closed', _event.reason);
+    this.is_connecting = false;
+    this.log(`Socket closed: ${_event.reason}`);
     this.hardware_state = false;
     this.socket_status = 'Closed';
+    this.elements.reconnect.hidden = false;
     // On close, remove all socket listeners just in case
     this.abort_controller.abort();
   }
@@ -157,7 +199,7 @@ export default class LedSockets {
     _websocket: WebSocket,
     _event: Event,
   ) {
-    // console.error('Socket Error');
+    this.log('Socket Error', _event);
   }
 
   private onSocketMessage(
@@ -188,6 +230,8 @@ export default class LedSockets {
     websocket: WebSocket,
     _event: Event,
   ) {
+    this.log('Connected');
+    this.is_connecting = false;
     this.socket_status = 'Open';
     websocket.send(
       JSON.stringify({
