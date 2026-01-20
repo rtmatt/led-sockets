@@ -1,5 +1,5 @@
 - [x] Add status to web-ui (socket server connected, hardware connected)
-- [ ] Add web-UI reflection of hardware state
+- [x] Add web-UI reflection of hardware state
 - [x] hide host information from UI codebase
 - [ ] reconnect/timeout status
   - [ ] "server-side heartbeats (pings/pongs) to detect dead connections, implementing a smart client-side reconnect/rejoin logic with local data storage for missed messages, and potentially leveraging push notifications for critical alerts"
@@ -9,6 +9,8 @@
 - [x] add noisemaker
 - [x] Graceful shutdown when running under supervisor
 - [ ] add server disconnect/unavailable handling in hardware-client and ui-client
+  - [ ] hardware-client
+  - [x] ui-client
 - [x] create and document unified development environment
 
 # Board
@@ -28,8 +30,10 @@
  
 # UI Client
 - [ ] Add polling upon connection disconnect to restore connection or reconnect button
-- [ ] Disable checkbox/button when disconnected
-- [ ] proper type narrowing
+  - [x] Add reconnect button and functionality
+  - [ ] Add interval-based auto-reconnect (try to reconnect every x seconds for x seconds, then relegate to manual button)
+- [x] Disable checkbox/button when disconnected
+- [x] proper type narrowing
 - [ ] add ids to json:api objects across full suite
 
 # Misc Python
