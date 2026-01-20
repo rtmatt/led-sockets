@@ -8,17 +8,20 @@
   >
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>LED SOCKETS!</title>
-  <script type="module" crossorigin src="/assets/index-Bkcz7MFU.js"></script>
+  <script type="module" crossorigin src="/assets/index-D67J01Nj.js"></script>
 </head>
 <body>
 <h1>What's a LED SOCKET?</h1>
-<button id="button">Click Me</button>
+<button disabled id="button">Click Me</button>
 <input disabled readonly id="checkbox" type="checkbox" />
 <div id="message-container"></div>
 <div>
   <dl>
     <dt>Socket Status:</dt>
-    <dd id="status">Closed</dd>
+    <dd>
+      <span id="status"></span>
+      <small><a href="#" hidden id="rbutton">reconnect</a></small>
+    </dd>
     <dt>Hardware Status:</dt>
     <dd id="hStatus">Disconnected</dd>
   </dl>
