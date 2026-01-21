@@ -22,5 +22,14 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "files": [],
+  "references": [
+    {
+      "path": "tsconfig.node.json"
+    },
+    {
+      "path": "tsconfig.app.json"
+    }
+  ]
 }
