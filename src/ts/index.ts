@@ -1,5 +1,4 @@
-import LedSockets from './LedSockets.ts';
+import { createApp } from 'vue'
+import App from './App.vue'
 
-document.addEventListener('DOMContentLoaded', () => {
-  new LedSockets();
-});
+createApp(App).mount('#app')
