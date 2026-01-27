@@ -214,8 +214,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         async for message in connection:
             try:
                 await self._handle_hardware_message(message)
-            except HardwareMessageException() as e:
-                self._log_exception(f"Ignoring invalid message: {e}")
+            except HardwareMessageException as e:
+                self._log(f"Ignoring invalid Hardware message: {e}", 'warning')
                 await connection.send(f"Message had no effect ({e})")
 
     async def _init_hardware_connection(self, hardware):

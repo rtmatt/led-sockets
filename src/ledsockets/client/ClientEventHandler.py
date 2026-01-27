@@ -37,6 +37,9 @@ class ClientEventHandler(Logs):
         self._event_loop: asyncio.AbstractEventLoop | None = None
         self._log('Created', 'debug')
 
+    def add_button_press_handler(self, callback):
+        self._board.add_button_press_handler(callback)
+
     @property
     def event_loop(self):
         return self._event_loop
