@@ -79,3 +79,7 @@ class AbstractBoard(ABC, Logs):
     def run(self):
         self.status_on()
         self.status_disconnected()
+
+    @abstractmethod
+    def status_reconnect_pending(self):
+        pass

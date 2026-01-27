@@ -140,12 +140,14 @@ class Client(Logs, MessageBroker):
         self._log('Awaiting manual reconnect', 'info')
         tasks.append(asyncio.create_task(self._reconnect_event.wait()))
         if len(self._reconnect_intervals):
+            self._handler.on_auto_reconnect_pending()
             time = self._reconnect_intervals.pop(0)
             self._log(
                 f'Automatically reconnecting in ({time}s; {len(self._reconnect_intervals)} attempts remaining)',
                 'info')
             tasks.append(asyncio.create_task(asyncio.sleep(time)))
-
+        else:
+            self._handler.on_auto_reconnect_failed()
         result, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for p in pending:
             p.cancel()
