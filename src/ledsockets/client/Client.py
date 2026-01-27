@@ -138,6 +138,41 @@ class Client(Logs, MessageBroker):
         self._log('Button press heard', 'debug')
         asyncio.run_coroutine_threadsafe(self._handle_button_press(), self._event_loop)
 
+    async def _reconnect(self):
+        if (self._shutting_down):
+            return
+
+        self._awaiting_reconnect = True
+        self._reconnect_event.clear()
+        tasks: list[asyncio.Task] = [
+            asyncio.create_task(self._stop_event.wait()),
+        ]
+        self._log('Awaiting manual reconnect', 'info')
+        tasks.append(asyncio.create_task(self._reconnect_event.wait()))
+        if len(self._reconnect_intervals):
+            time = self._reconnect_intervals.pop(0)
+            self._log(
+                f'Automatically reconnecting in ({time}s; {len(self._reconnect_intervals)} attempts remaining)',
+                'info')
+            tasks.append(asyncio.create_task(asyncio.sleep(time)))
+
+        result, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for p in pending:
+            p.cancel()
+
+        if self._shutting_down:
+            self._log('Stop event heard; Abandon waiting for reconnect', 'info')
+            return
+
+        if self._reconnect_event.is_set():
+            # Manual reconnect attempt halts auto-reconnect
+            self._reconnect_intervals = []
+            self._log('Manual reconnect triggered.  Reconnecting...', 'info')
+        else:
+            self._log('Attempting auto-reconnect', 'info')
+        self._awaiting_reconnect = False
+        await self._run_client()
+
     async def _run_client(self):
         await self._on_connection_pending()
         try:
@@ -163,43 +198,7 @@ class Client(Logs, MessageBroker):
             # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves) or an exception happens
             await self._on_connection_closed()
 
-        self._awaiting_reconnect = True
-        self._reconnect_event.clear()
-        # if shutting down (SIG), continue with shutdown
-        if self._shutting_down:
-            pass
-        else:
-            tasks: list[asyncio.Task] = [
-                asyncio.create_task(self._stop_event.wait()),
-            ]
-
-            self._log('Awaiting manual reconnect', 'info')
-            tasks.append(asyncio.create_task(self._reconnect_event.wait()))
-
-            if len(self._reconnect_intervals):
-                time = self._reconnect_intervals.pop(0)
-                self._log(
-                    f'Automatically reconnecting in ({time}s; {len(self._reconnect_intervals)} attempts remaining)',
-                    'info')
-                tasks.append(asyncio.create_task(asyncio.sleep(time)))
-
-            result, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-            for p in pending:
-                p.cancel()
-
-            try_ = False
-            if self._shutting_down:
-                self._log('Stop event heard; Abandon waiting for reconnect', 'info')
-            elif self._reconnect_event.is_set():
-                try_ = True
-                self._reconnect_intervals = []
-                self._log('Manual reconnect triggered.  Reconnecting...', 'info')
-            else:
-                try_ = True
-                self._log('Attempting auto-reconnect', 'info')
-
-            if (try_):
-                await self._run_client()
+        await self._reconnect()
 
     async def _trigger_shutdown(self, sig):
         if self._shutting_down:
