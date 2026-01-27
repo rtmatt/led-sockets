@@ -41,18 +41,17 @@ class Client(Logs, MessageBroker):
 
         self._connection: None | ClientConnection = None
         self._handler.add_button_press_handler(self._on_button_press)
-        self._reconnect_event: asyncio.Event | None = None
+        self._awaiting_reconnect = False
+        self._reconnect_event: asyncio.Event = asyncio.Event()
         self._reconnect_intervals = self.AUTO_RECONNECT_INTERVAL_CONFIG.copy()
         self._log('Created', 'debug')
 
     async def _wait_manual_reconnect(self):
-        self._reconnect_event = asyncio.Event()
         await asyncio.wait([
             asyncio.create_task(self._reconnect_event.wait()),
             asyncio.create_task(self._stop_event.wait())
         ], return_when=asyncio.FIRST_COMPLETED)
         if (self._reconnect_event and self._reconnect_event.is_set()):
-            self._reconnect_event = None
             self._log('Reconnecting...', 'info')
             await self._run_client()
         elif self._stop_event.is_set():
@@ -129,14 +128,14 @@ class Client(Logs, MessageBroker):
         self._handler.on_connection_pending()
 
     async def _handle_button_press(self):
-        if (self._reconnect_event is not None):
-            self._log('Triggering reconnect event', 'info')
+        if (self._awaiting_reconnect):
+            self._log('Button press: triggering reconnect', 'info')
             self._reconnect_event.set()
         else:
-            self._log('Button press ignored', 'info')
+            self._log('Button press: ignored', 'info')
 
     def _on_button_press(self, button):
-        self._log('Button press heard', 'info')
+        self._log('Button press heard', 'debug')
         asyncio.run_coroutine_threadsafe(self._handle_button_press(), self._event_loop)
 
     async def _run_client(self):
@@ -164,6 +163,8 @@ class Client(Logs, MessageBroker):
             # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves) or an exception happens
             await self._on_connection_closed()
 
+        self._awaiting_reconnect = True
+        self._reconnect_event.clear()
         # if shutting down (SIG), continue with shutdown
         if self._shutting_down:
             pass
