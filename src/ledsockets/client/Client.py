@@ -47,17 +47,6 @@ class Client(Logs, MessageBroker):
         self._reconnect_intervals = self.AUTO_RECONNECT_INTERVAL_CONFIG.copy()
         self._log('Created', 'debug')
 
-    async def _wait_manual_reconnect(self):
-        await asyncio.wait([
-            asyncio.create_task(self._reconnect_event.wait()),
-            asyncio.create_task(self._stop_event.wait())
-        ], return_when=asyncio.FIRST_COMPLETED)
-        if (self._reconnect_event and self._reconnect_event.is_set()):
-            self._log('Reconnecting...', 'info')
-            await self._run_client()
-        elif self._stop_event.is_set():
-            self._log('Stop event heard; Abandon waiting for reconnect', 'info')
-
     async def send_message(self, message, connection=None):
         self._log(f"Sending message: {message}", 'debug')
         target = connection if connection else self._connection
