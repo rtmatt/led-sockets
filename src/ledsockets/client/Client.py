@@ -129,7 +129,6 @@ class Client(Logs, MessageBroker):
         self._handler.on_connection_pending()
 
     async def _handle_button_press(self):
-        print(self._reconnect_event)
         if (self._reconnect_event is not None):
             self._log('Triggering reconnect event', 'info')
             self._reconnect_event.set()
@@ -138,7 +137,6 @@ class Client(Logs, MessageBroker):
 
     def _on_button_press(self, button):
         self._log('Button press heard', 'info')
-        print(self._event_loop)
         asyncio.run_coroutine_threadsafe(self._handle_button_press(), self._event_loop)
 
     async def _run_client(self):
