@@ -27,6 +27,7 @@ class ClientMessageException(Exception):
 class Client(Logs, MessageBroker):
     LOGGER_NAME = 'ledsockets.client.manager'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
+    AUTO_RECONNECT_INTERVAL_CONFIG = [1, 60, 60 * 5, 60 * 10]
 
     def __init__(self, host_url, handler: ClientEventHandler):
         Logs.__init__(self)
@@ -41,6 +42,7 @@ class Client(Logs, MessageBroker):
         self._connection: None | ClientConnection = None
         self._handler.add_button_press_handler(self._on_button_press)
         self._reconnect_event: asyncio.Event | None = None
+        self._reconnect_intervals = self.AUTO_RECONNECT_INTERVAL_CONFIG.copy()
         self._log('Created', 'debug')
 
     async def _wait_manual_reconnect(self):
@@ -117,6 +119,8 @@ class Client(Logs, MessageBroker):
         await self.send_message(json.dumps(payload), connection)
 
     async def _on_connection_opened(self, connection):
+        # Reset active reconnect config on successful connections
+        self._reconnect_intervals = self.AUTO_RECONNECT_INTERVAL_CONFIG.copy()
         await self._do_connection_init(connection)
         self._handler.on_initialized(connection)
 
@@ -152,8 +156,9 @@ class Client(Logs, MessageBroker):
                     raise ClientConnectionError('Error running connection') from e
 
         except OSError as e:
-            self._log_exception('Connection failed')
             # OSErrors arise from connection issues.  Fall through to reconnect loop
+            self._log(f'Connection failed: {e}', 'error')
+            # self._log_exception('Connection failed')
         except Exception as e:
             self._log_exception('Unspecified connection error')
             # Other exceptions at this point should be logged, then fall through to reconnect loop
@@ -161,10 +166,28 @@ class Client(Logs, MessageBroker):
             # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves) or an exception happens
             await self._on_connection_closed()
 
-        # if program is shutting down (SIG), continue with shutdown
-        # Otherwise, attempt to reconnect every x seconds
-        # after x reconnect attempts, enter waiting loop (until button press)
-        await self._wait_manual_reconnect()
+        # if shutting down (SIG), continue with shutdown
+        if self._shutting_down:
+            pass
+        # Otherwise, attempt to reconnect according to remaining auto-reconnect configs
+        elif len(self._reconnect_intervals):
+            time = self._reconnect_intervals.pop(0)
+            self._log(f'Awaiting Auto-reconnect attempt ({time}s; {len(self._reconnect_intervals)} remaining)', 'info')
+            await asyncio.wait([
+                asyncio.create_task(asyncio.sleep(time)),
+                asyncio.create_task(self._stop_event.wait())
+            ], return_when=asyncio.FIRST_COMPLETED)
+
+            if (self._shutting_down):
+                self._log('Shutdown heard during sleep; Abandoning reconnect', 'info')
+            else:
+                self._log('Auto-reconnect attempt', 'info')
+                await self._run_client()
+
+        else:
+            # after x reconnect attempts, enter waiting loop (until button press)
+            self._log('Awaiting manual reconnect', 'info')
+            await self._wait_manual_reconnect()
 
     async def _trigger_shutdown(self, sig):
         if self._shutting_down:
