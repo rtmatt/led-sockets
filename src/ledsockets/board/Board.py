@@ -19,7 +19,7 @@ class Board(AbstractBoard):
         self.button.when_released = self.on_button_release
 
     def cleanup(self):
-        self._log('Cleaning up','debug')
+        self._log('Cleaning up', 'debug')
         self.set_blue(False)
         self.set_green(False)
         self.set_red(False)
@@ -36,6 +36,9 @@ class Board(AbstractBoard):
 
     def status_connecting(self):
         self.red_led.blink()
+
+    def status_reconnect_pending(self):
+        self.red_led.blink(0.15, 0.5)
 
     def status_disconnected(self):
         self.set_red(True)

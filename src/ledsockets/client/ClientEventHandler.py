@@ -103,6 +103,14 @@ class ClientEventHandler(Logs):
         self._log('on_connection_pending heard', 'debug')
         self._board.status_connecting()
 
+    def on_auto_reconnect_pending(self):
+        self._log('on_reconnect_waiting heard', 'debug')
+        self._board.status_reconnect_pending()
+
+    def on_auto_reconnect_failed(self):
+        self._log('on_auto_reconnect_failed heard', 'debug')
+        self._board.status_disconnected()
+
     async def _handle_message_exception(self, e: Exception, message):
         match e:
             case ServerMessageException():
