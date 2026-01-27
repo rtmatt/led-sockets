@@ -27,6 +27,7 @@ class ClientMessageException(Exception):
 class Client(Logs, MessageBroker):
     LOGGER_NAME = 'ledsockets.client.manager'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
+    AUTO_RECONNECT_INTERVAL_CONFIG = [1, 60, 60 * 5, 60 * 10]
 
     def __init__(self, host_url, handler: ClientEventHandler):
         Logs.__init__(self)
@@ -35,9 +36,14 @@ class Client(Logs, MessageBroker):
         self._shutting_down = False
         self._handler = handler
         self._handler.message_broker = self
+        self._event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
         self._handler.event_loop = asyncio.get_running_loop()
 
         self._connection: None | ClientConnection = None
+        self._handler.add_button_press_handler(self._on_button_press)
+        self._awaiting_reconnect = False
+        self._reconnect_event: asyncio.Event = asyncio.Event()
+        self._reconnect_intervals = self.AUTO_RECONNECT_INTERVAL_CONFIG.copy()
         self._log('Created', 'debug')
 
     async def send_message(self, message, connection=None):
@@ -101,12 +107,60 @@ class Client(Logs, MessageBroker):
         await self.send_message(json.dumps(payload), connection)
 
     async def _on_connection_opened(self, connection):
+        # Reset active reconnect config on successful connections
+        self._reconnect_intervals = self.AUTO_RECONNECT_INTERVAL_CONFIG.copy()
         await self._do_connection_init(connection)
         self._handler.on_initialized(connection)
 
     async def _on_connection_pending(self):
         self._log('Opening connection', 'info')
         self._handler.on_connection_pending()
+
+    async def _handle_button_press(self):
+        if (self._awaiting_reconnect):
+            self._log('Button press: triggering reconnect', 'info')
+            self._reconnect_event.set()
+        else:
+            self._log('Button press: ignored', 'info')
+
+    def _on_button_press(self, button):
+        self._log('Button press heard', 'debug')
+        asyncio.run_coroutine_threadsafe(self._handle_button_press(), self._event_loop)
+
+    async def _reconnect(self):
+        if (self._shutting_down):
+            return
+
+        self._awaiting_reconnect = True
+        self._reconnect_event.clear()
+        tasks: list[asyncio.Task] = [
+            asyncio.create_task(self._stop_event.wait()),
+        ]
+        self._log('Awaiting manual reconnect', 'info')
+        tasks.append(asyncio.create_task(self._reconnect_event.wait()))
+        if len(self._reconnect_intervals):
+            time = self._reconnect_intervals.pop(0)
+            self._log(
+                f'Automatically reconnecting in ({time}s; {len(self._reconnect_intervals)} attempts remaining)',
+                'info')
+            tasks.append(asyncio.create_task(asyncio.sleep(time)))
+
+        result, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for p in pending:
+            p.cancel()
+
+        if self._shutting_down:
+            self._log('Stop event heard; Abandon waiting for reconnect', 'info')
+            return
+
+        if self._reconnect_event.is_set():
+            # Manual reconnect attempt halts auto-reconnect
+            self._reconnect_intervals = []
+            self._log('Manual reconnect triggered.  Reconnecting...', 'info')
+        else:
+            self._log('Attempting auto-reconnect', 'info')
+        self._awaiting_reconnect = False
+        await self._run_client()
 
     async def _run_client(self):
         await self._on_connection_pending()
@@ -131,6 +185,8 @@ class Client(Logs, MessageBroker):
         finally:
             # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves) or an exception happens
             await self._on_connection_closed()
+
+        await self._reconnect()
 
     async def _trigger_shutdown(self, sig):
         if self._shutting_down:
