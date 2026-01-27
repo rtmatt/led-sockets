@@ -191,7 +191,6 @@ class Client(Logs, MessageBroker):
         except OSError as e:
             # OSErrors arise from connection issues.  Fall through to reconnect loop
             self._log(f'Connection failed: {e}', 'error')
-            # self._log_exception('Connection failed')
         except Exception as e:
             self._log_exception('Unspecified connection error')
             # Other exceptions at this point should be logged, then fall through to reconnect loop
