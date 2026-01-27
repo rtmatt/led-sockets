@@ -28,6 +28,7 @@ class Client(Logs, MessageBroker):
     LOGGER_NAME = 'ledsockets.client.manager'
     CONNECTION_CLOSING_MESSAGE = 'I am dying'
     AUTO_RECONNECT_INTERVAL_CONFIG = [1, 60, 60 * 5, 60 * 10]
+    IS_DEVELOPMENT = os.getenv('APP_ENV', 'production').lower() == 'local'
 
     def __init__(self, host_url, handler: ClientEventHandler):
         Logs.__init__(self)
@@ -194,6 +195,8 @@ class Client(Logs, MessageBroker):
         except Exception as e:
             self._log_exception('Unspecified connection error')
             # Other exceptions at this point should be logged, then fall through to reconnect loop
+            if self.IS_DEVELOPMENT:
+                raise e
         finally:
             # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves) or an exception happens
             await self._on_connection_closed()
