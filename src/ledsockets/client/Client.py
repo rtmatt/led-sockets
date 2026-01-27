@@ -35,10 +35,26 @@ class Client(Logs, MessageBroker):
         self._shutting_down = False
         self._handler = handler
         self._handler.message_broker = self
+        self._event_loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
         self._handler.event_loop = asyncio.get_running_loop()
 
         self._connection: None | ClientConnection = None
+        self._handler.add_button_press_handler(self._on_button_press)
+        self._reconnect_event: asyncio.Event | None = None
         self._log('Created', 'debug')
+
+    async def _wait_manual_reconnect(self):
+        self._reconnect_event = asyncio.Event()
+        await asyncio.wait([
+            asyncio.create_task(self._reconnect_event.wait()),
+            asyncio.create_task(self._stop_event.wait())
+        ], return_when=asyncio.FIRST_COMPLETED)
+        if (self._reconnect_event and self._reconnect_event.is_set()):
+            self._reconnect_event = None
+            self._log('Reconnecting...', 'info')
+            await self._run_client()
+        elif self._stop_event.is_set():
+            self._log('Stop event heard; Abandon waiting for reconnect', 'info')
 
     async def send_message(self, message, connection=None):
         self._log(f"Sending message: {message}", 'debug')
@@ -108,6 +124,19 @@ class Client(Logs, MessageBroker):
         self._log('Opening connection', 'info')
         self._handler.on_connection_pending()
 
+    async def _handle_button_press(self):
+        print(self._reconnect_event)
+        if (self._reconnect_event is not None):
+            self._log('Triggering reconnect event', 'info')
+            self._reconnect_event.set()
+        else:
+            self._log('Button press ignored', 'info')
+
+    def _on_button_press(self, button):
+        self._log('Button press heard', 'info')
+        print(self._event_loop)
+        asyncio.run_coroutine_threadsafe(self._handle_button_press(), self._event_loop)
+
     async def _run_client(self):
         await self._on_connection_pending()
         try:
@@ -124,13 +153,18 @@ class Client(Logs, MessageBroker):
 
         except OSError as e:
             self._log_exception('Connection failed')
-            raise e  # any exceptions at this point should kill the program since we have no reconnect loop
+            # OSErrors arise from connection issues.  Fall through to reconnect loop
         except Exception as e:
             self._log_exception('Unspecified connection error')
-            raise e  # any exceptions at this point should kill the program since we have no reconnect loop
+            # Other exceptions at this point should be logged, then fall through to reconnect loop
         finally:
             # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves) or an exception happens
             await self._on_connection_closed()
+
+        # if program is shutting down (SIG), continue with shutdown
+        # Otherwise, attempt to reconnect every x seconds
+        # after x reconnect attempts, enter waiting loop (until button press)
+        await self._wait_manual_reconnect()
 
     async def _trigger_shutdown(self, sig):
         if self._shutting_down:
