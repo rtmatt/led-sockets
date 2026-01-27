@@ -124,19 +124,13 @@ class Client(Logs, MessageBroker):
 
         except OSError as e:
             self._log_exception('Connection failed')
+            raise e  # any exceptions at this point should kill the program since we have no reconnect loop
         except Exception as e:
             self._log_exception('Unspecified connection error')
+            raise e  # any exceptions at this point should kill the program since we have no reconnect loop
         finally:
             # This finally hits whether the connection is closed on the server end (listen task ends) or killed locally (shutdown event resolves) or an exception happens
             await self._on_connection_closed()
-
-        if self._shutting_down:
-            self._log('Shutting down; abandoning reconnect', 'info')
-        else:
-            self._log('Waiting to reconnect', 'info')
-            await asyncio.sleep(5)
-            self._log('Attempting to reconnect', 'info')
-            await self._run_client()
 
     async def _trigger_shutdown(self, sig):
         if self._shutting_down:
