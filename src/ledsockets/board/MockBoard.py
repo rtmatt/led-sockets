@@ -58,6 +58,9 @@ class MockBoard(AbstractBoard):
         self._log('status disconnected')
         self.set_red(True)
 
+    def status_reconnect_pending(self):
+        self._log('status reconnect waiting')
+
     def set_blue(self, value):
         self._log(f"blue {'on' if value else 'off'}")
 

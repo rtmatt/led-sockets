@@ -5,23 +5,24 @@
   - [ ] "server-side heartbeats (pings/pongs) to detect dead connections, implementing a smart client-side reconnect/rejoin logic with local data storage for missed messages, and potentially leveraging push notifications for critical alerts"
 - [ ] security
 - [ ] add output/display on pi showing how many people are connected to it
-- [ ] have pi detect when connection breaks and add push button for attempt to reconnect
+- [x] have pi detect when connection breaks and add push button for attempt to reconnect
 - [x] add noisemaker
 - [x] Graceful shutdown when running under supervisor
-- [ ] add server disconnect/unavailable handling in hardware-client and ui-client
-  - [ ] hardware-client
+- [x] add server disconnect/unavailable handling in hardware-client and ui-client
+  - [x] hardware-client
   - [x] ui-client
 - [x] create and document unified development environment
 
 # Board
 - [x] consider extracting pins to env vars
-- [ ] A "reset" button on the board would be neat; resets state and reconnects to server
+- [x] A "reset" button on the board would be neat; resets state and reconnects to server
+- [x] Update LED states during reconnect process
 
 # Server
 - [ ] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
 
 # Client
-- [ ] A "reset" button on the board would be neat; resets state and reconnects to server
+- [x] A "reset" button on the board would be neat; resets state and reconnects to server
 - [ ] Following the previous, don't end process on a server connection break...sit and wait for button-based reconnect
 
 ## ClientEventHandler

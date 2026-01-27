@@ -4,6 +4,7 @@ from gpiozero import LED, TonalBuzzer, Button
 
 from ledsockets.board.AbstractBoard import AbstractBoard
 
+
 class Board(AbstractBoard):
     LOGGER_NAME = 'ledsockets.board.physical'
 
@@ -18,24 +19,26 @@ class Board(AbstractBoard):
         self.button.when_released = self.on_button_release
 
     def cleanup(self):
-        self._log('Cleaning up','debug')
+        self._log('Cleaning up', 'debug')
         self.set_blue(False)
         self.set_green(False)
         self.set_red(False)
         self.stop_tone()
 
     def status_on(self):
-        self.green_led.blink()
+        self.set_green(True)
 
     def status_off(self):
         self.set_green(False)
 
     def status_connected(self):
         self.set_red(False)
-        self.set_green(True)
 
     def status_connecting(self):
         self.red_led.blink()
+
+    def status_reconnect_pending(self):
+        self.red_led.blink(0.15, 0.5)
 
     def status_disconnected(self):
         self.set_red(True)
