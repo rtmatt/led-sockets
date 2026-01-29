@@ -43,3 +43,7 @@ attributes: Partial<hardware_state.attributes>
 type: talkback_message
 attributes:
   message: ""
+---
+type: error
+attributes:
+  message: ""

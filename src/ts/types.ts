@@ -10,6 +10,13 @@ export type HardwareStateAttributes = {
   message: string;
 }
 
+export interface ErrorMessage extends SocketMessage {
+  attributes: {
+      message: string
+  }
+  type: 'error',
+}
+
 export interface HardwareStateMessage extends SocketMessage {
   attributes: HardwareStateAttributes
   type: 'hardware_state',
