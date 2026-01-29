@@ -3,6 +3,7 @@ export interface SocketMessage {
   attributes?: Record<string, any> | null;
   relationships?: Record<string, any>;
   type: string;
+  id: string
 }
 
 export type HardwareStateAttributes = {
@@ -10,8 +11,15 @@ export type HardwareStateAttributes = {
   message: string;
 }
 
-export interface HardwareStateMessage extends SocketMessage {
-  attributes: HardwareStateAttributes | null
+export interface ErrorMessage extends SocketMessage {
+  attributes: {
+      message: string
+  }
+  type: 'error',
+}
+
+export interface HardwareState extends SocketMessage {
+  attributes: HardwareStateAttributes
   type: 'hardware_state',
 }
 
@@ -21,7 +29,7 @@ export interface HardwareConnectionMessage extends SocketMessage {
   }
   relationships: {
     hardware_state: {
-      data: HardwareStateMessage
+      data: HardwareState
     }
   }
   type: 'hardware_connection',
@@ -33,7 +41,7 @@ export interface ClientConnectionInitMessage extends SocketMessage {
   }
   relationships: {
     hardware_state: {
-      data: HardwareStateMessage
+      data: HardwareState
     }
   }
   type: 'client_init',
@@ -48,7 +56,7 @@ export function isSocketMessage(message: unknown): message is SocketMessage {
   return !!message && typeof message === 'object' && 'type' in message && !!message.type;
 }
 
-export function isHardwareStateMessage(message: SocketMessage): message is HardwareStateMessage {
+export function isHardwareState(message: SocketMessage): message is HardwareState {
   if (message.type !== 'hardware_state') {
     return false;
   }
@@ -78,7 +86,7 @@ export function isClientConnectionInitMessage(message: SocketMessage): message i
     return false;
   }
   const { data } = hardware_state;
-  return isHardwareStateMessage(data);
+  return isHardwareState(data);
 }
 
 export function isHardwareConnectionMessage(message: SocketMessage): message is HardwareConnectionMessage {
@@ -100,5 +108,5 @@ export function isHardwareConnectionMessage(message: SocketMessage): message is 
     return false;
   }
   const { data } = hardware_state;
-  return isHardwareStateMessage(data);
+  return isHardwareState(data);
 }

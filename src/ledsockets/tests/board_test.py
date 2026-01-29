@@ -1,6 +1,7 @@
-from time import sleep
-from ledsockets.board.Board import Board
 from functools import partial
+from time import sleep
+
+from ledsockets.board.Board import Board
 
 TEST_ACTIVE = True
 

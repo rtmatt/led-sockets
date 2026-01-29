@@ -19,23 +19,24 @@
 - [x] Update LED states during reconnect process
 
 # Server
-- [ ] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
+- [x] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
 
 # Client
 - [x] A "reset" button on the board would be neat; resets state and reconnects to server
-- [ ] Following the previous, don't end process on a server connection break...sit and wait for button-based reconnect
+- [x] Following the previous, don't end process on a server connection break...sit and wait for button-based reconnect
 
 ## ClientEventHandler
 - [ ] ::_on_board_button_press if homebase message fails, reset changes to board state; audit for similar cases
 - [ ] ::_handle_message_exception - introduce talkback between server/client on message errors
  
 # UI Client
-- [ ] Add polling upon connection disconnect to restore connection or reconnect button
+- [x] Add polling upon connection disconnect to restore connection or reconnect button
   - [x] Add reconnect button and functionality
-  - [ ] Add interval-based auto-reconnect (try to reconnect every x seconds for x seconds, then relegate to manual button)
+  - [No] Add interval-based auto-reconnect (try to reconnect every x seconds for x seconds, then relegate to manual 
+    button)
 - [x] Disable checkbox/button when disconnected
 - [x] proper type narrowing
-- [ ] add ids to json:api objects across full suite
+- [x] add ids to json:api objects across full suite
 
 # Misc Python
 - [ ] configure base/root logger
