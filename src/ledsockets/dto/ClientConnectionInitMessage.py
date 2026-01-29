@@ -2,7 +2,7 @@ from ledsockets.dto.AbstractDto import AbstractDto
 from ledsockets.dto.HardwareState import HardwareState
 
 
-class ClientConnectionInit(AbstractDto):
+class ClientConnectionInitMessage(AbstractDto):
     TYPE = 'client_init'
 
     def __init__(self, hardware_is_connected, message, hardware_state: HardwareState, id=''):

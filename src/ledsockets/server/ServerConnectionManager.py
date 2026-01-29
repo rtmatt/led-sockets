@@ -7,7 +7,8 @@ from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
 from ledsockets.dto.AbstractDto import DTOInvalidAttributesException
-from ledsockets.dto.ErrorDto import ErrorDto
+from ledsockets.dto.ClientConnectionInitMessage import ClientConnectionInitMessage
+from ledsockets.dto.ErrorMessage import ErrorMessage
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
@@ -99,11 +100,11 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._handle_client_message(message)
             except ClientMessageException as e:
                 self._log_exception(f"Ignoring invalid message: {e}")
-                error = ErrorDto(f"Message had no effect ({e})")
+                error = ErrorMessage(f"Message had no effect ({e})")
                 await connection.send(error.toJSON())
 
     async def _init_client_connection(self, client):
-        payload = ClientConnectionInit(self._hardware_connection is not None, "Hello, client!", self._hardware_state)
+        payload = ClientConnectionInitMessage(self._hardware_connection is not None, "Hello, client!", self._hardware_state)
         websocket = client.get('connection')
         await websocket.send(payload.toJSON())
 
@@ -200,7 +201,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._handle_hardware_message(message)
             except HardwareMessageException as e:
                 self._log(f"Ignoring invalid Hardware message: {e}", 'warning')
-                error = ErrorDto(f"Message had no effect ({e})")
+                error = ErrorMessage(f"Message had no effect ({e})")
                 await connection.send(error.toJSON())
 
     async def _init_hardware_connection(self, hardware):
@@ -273,14 +274,14 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         except InitPayloadInvalidException as e:
             message = str(e)
             self._log_exception(message)
-            error = ErrorDto(message)
+            error = ErrorMessage(message)
             await websocket.send(error.toJSON())
         except InvalidHardwareInitPayloadException as e:
             message = f'Hardware Init Error: {e}'
             self._log_exception('Hardware Init Error')
-            error = ErrorDto(message)
+            error = ErrorMessage(message)
             await websocket.send(error.toJSON())
         except HardwareAlreadyConnectedException as e:
             self._log('Hardware already connected; aborting connection', 'warning')
-            error = ErrorDto("Hardware already connected.  Buh bye now.")
+            error = ErrorMessage("Hardware already connected.  Buh bye now.")
             await websocket.send(error.toJSON())

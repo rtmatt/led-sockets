@@ -1,7 +1,7 @@
 from ledsockets.dto.AbstractDto import AbstractDto
 
 
-class ErrorDto(AbstractDto):
+class ErrorMessage(AbstractDto):
     TYPE = 'error'
 
     def __init__(self, message, id=""):
