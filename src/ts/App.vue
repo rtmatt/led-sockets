@@ -102,6 +102,8 @@ function openConnection() {
       } else if (isClientConnectionInitMessage(payload)) {
         updateState(payload.relationships.hardware_state.data.attributes);
         isHardwareConnected.value = payload.attributes.hardware_is_connected;
+      } else {
+        console.warn('Unprocessed message received');
       }
     }
 
