@@ -4,7 +4,7 @@ import {
   type HardwareStateAttributes,
   isClientConnectionInitMessage,
   isHardwareConnectionMessage,
-  isHardwareStateMessage,
+  isHardwareState,
   isSocketMessage,
   type PatchHardwareState,
 } from './types';
@@ -94,7 +94,7 @@ function openConnection() {
       console.warn(data);
     }
     if (isSocketMessage(payload)) {
-      if (isHardwareStateMessage(payload)) {
+      if (isHardwareState(payload)) {
         updateState(payload.attributes);
       } else if (isHardwareConnectionMessage(payload)) {
         updateState(payload.relationships.hardware_state.data.attributes);
