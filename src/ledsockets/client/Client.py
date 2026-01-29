@@ -11,6 +11,7 @@ from ledsockets.board.Board import Board
 from ledsockets.board.MockBoard import MockBoard
 from ledsockets.client.ClientEventHandler import ClientEventHandler
 from ledsockets.contracts.MessageBroker import MessageBroker
+from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
 
 
@@ -203,7 +204,8 @@ class Client(Logs, MessageBroker):
         if self._connection:
             self._log('Broadcasting impending death', 'debug')
             try:
-                await asyncio.create_task(self.send_message(self.CONNECTION_CLOSING_MESSAGE, self._connection))
+                payload = TalkbackMessage(self.CONNECTION_CLOSING_MESSAGE).toJSON()
+                await asyncio.create_task(self.send_message(payload, self._connection))
             except Exception as e:
                 self._log(f"Failed to send shutdown message: {e}", 'warning')
 
