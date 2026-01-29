@@ -5,9 +5,9 @@ import time
 from dotenv import load_dotenv
 
 from ledsockets.board.AbstractBoard import AbstractBoard
-from ledsockets.log.LogsConcern import Logs
-from ledsockets.board.MockBoard import MockBoard
 from ledsockets.board.Board import Board
+from ledsockets.board.MockBoard import MockBoard
+from ledsockets.log.LogsConcern import Logs
 
 
 class BoardController(Logs):
@@ -85,7 +85,7 @@ class BoardController(Logs):
                     print('I don\'t know what that means')
 
         print('K byeeeee.')
-        self._log('Run ended','info')
+        self._log('Run ended', 'info')
 
     def run_lite_sync(self):
         self._log('Starting run lite')
@@ -108,7 +108,7 @@ class BoardController(Logs):
                     print('I don\'t know what that means')
 
         print('K byeeeee.')
-        self._log('Run ended','info')
+        self._log('Run ended', 'info')
 
 
 def main():
