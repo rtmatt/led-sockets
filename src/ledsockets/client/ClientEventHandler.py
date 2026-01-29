@@ -23,10 +23,6 @@ class ClientEventHandler(Logs):
     Handles events received by a hardware Client (connection)
     """
     LOGGER_NAME = 'ledsockets.client.handler'
-    DEFAULT_STATE = {
-        "on": False,
-        "message": ""
-    }
 
     def __init__(self, board: AbstractBoard):
         Logs.__init__(self)
