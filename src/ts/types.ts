@@ -11,7 +11,7 @@ export type HardwareStateAttributes = {
 }
 
 export interface HardwareStateMessage extends SocketMessage {
-  attributes: HardwareStateAttributes | null
+  attributes: HardwareStateAttributes
   type: 'hardware_state',
 }
 
