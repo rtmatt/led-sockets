@@ -3,6 +3,7 @@ export interface SocketMessage {
   attributes?: Record<string, any> | null;
   relationships?: Record<string, any>;
   type: string;
+  id: string
 }
 
 export type HardwareStateAttributes = {
