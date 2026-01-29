@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
+from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
 
 
@@ -82,6 +83,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             case 'patch_hardware_state':
                 self._log('Passing message to hardware', 'info')
                 await self._send_message_to_hardware(message)
+            case 'talkback_message':
+                #@todo: complete and verify
+                self._log(f'Client talkback message: {message['attributes']['message']}', 'info')
             case _:
                 raise ClientMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
@@ -204,6 +208,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 # This is trusting of the hardware client.  However, we trust them more than ourselves to know what their state looks like.  At least for now
                 self._hardware_state = attributes
                 self._log(f"Hardware state updated: {self._hardware_state}", 'info')
+            case 'talkback_message':
+                # @todo: test and verify
+                self._log(f'Talkback message: {attributes['message']}','info')
             case _:
                 raise HardwareMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
@@ -220,8 +227,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
     async def _init_hardware_connection(self, hardware):
         connection = hardware.get('connection')
-
-        asyncio.create_task(connection.send("Hello, hardware"))
+        payload = TalkbackMessage("Hello, hardware").toJSON()
+        asyncio.create_task(connection.send(payload))
 
         payload = self.get_hardware_connection_payload()
         await self._broadcast_to_clients(json.dumps(payload))

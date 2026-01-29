@@ -122,6 +122,10 @@ class ClientEventHandler(Logs):
         try:
             payload = json.loads(message)
             payload_type = payload['type']
+            if payload_type=='talkback_message':
+                message_ = payload['attributes']['message']
+                self._log(f'Talkback message received: "{message_}"')
+                return
             if payload_type != 'patch_hardware_state':
                 raise ServerMessageException(f'Unsupported payload type "{payload_type}"')
             on = payload['attributes']['on']

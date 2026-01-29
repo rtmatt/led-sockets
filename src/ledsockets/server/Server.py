@@ -8,6 +8,7 @@ from websockets.asyncio.server import ServerConnection
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 
+from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
 from ledsockets.server.ServerConnectionManager import ServerConnectionManager, AbstractServerConnectionManager
 
@@ -62,7 +63,8 @@ class Server(Logs):
         try:
             # Add a timeout so a single slow client doesn't hang the whole shutdown
             async with asyncio.timeout(2.0):
-                await websocket.send(self.SHUTDOWN_PAYLOAD)
+                payload = TalkbackMessage(self.SHUTDOWN_PAYLOAD).toJSON()
+                await websocket.send(payload)
                 await websocket.close(self.CLOSE_CODE)
         except Exception:
             self._log_exception('Exception during client disconnect')
