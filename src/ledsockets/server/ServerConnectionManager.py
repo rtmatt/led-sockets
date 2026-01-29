@@ -2,6 +2,7 @@ import asyncio
 import json
 from abc import ABC, abstractmethod
 
+from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
@@ -116,18 +117,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         return client
 
-    def get_hardware_connection_payload(self):
-        return {
-            "type": "hardware_connection",
-            "attributes": {
-                "is_connected": self._hardware_connection is not None
-            },
-            "relationships": {
-                "hardware_state": {
-                    "data": self._hardware_state.toDict()
-                }
-            }
-        }
+    def get_hardware_connection_status_payload(self):
+        hardware_is_connected = self._hardware_connection is not None
+        return HardwareConnectionMessage(hardware_is_connected, self._hardware_state).toDict()
 
     async def _broadcast_to_clients(self, message):
         if not self._client_connections:
@@ -169,7 +161,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         self._hardware_state = HardwareState()
 
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)', 'info')
-        payload = self.get_hardware_connection_payload()
+        payload = self.get_hardware_connection_status_payload()  # @todo: rename for maintainability; this is the current status payload not the payload upon connection
         await self._broadcast_to_clients(json.dumps(payload))
 
     async def _handle_hardware_message(self, message):
@@ -216,7 +208,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         payload = TalkbackMessage("Hello, hardware").toJSON()
         asyncio.create_task(connection.send(payload))
 
-        payload = self.get_hardware_connection_payload()
+        payload = self.get_hardware_connection_status_payload()
         await self._broadcast_to_clients(json.dumps(payload))
 
     def _record_hardware_connection(self, websocket: ServerConnection, payload):
