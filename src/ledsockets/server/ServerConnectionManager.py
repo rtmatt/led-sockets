@@ -85,8 +85,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 self._log('Passing message to hardware', 'info')
                 await self._send_message_to_hardware(message)
             case 'talkback_message':
-                #@todo: complete and verify
-                self._log(f'Client talkback message: {message['attributes']['message']}', 'info')
+                talkback_message = payload['attributes']['message']
+                self._log(f'Client talkback message: {talkback_message}', 'info')
             case _:
                 raise ClientMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
@@ -204,8 +204,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 self._hardware_state = HardwareState.from_attributes(attributes)
                 self._log(f"Hardware state updated: {self._hardware_state.get_attributes()}", 'info')
             case 'talkback_message':
-                # @todo: test and verify
-                self._log(f'Talkback message: {attributes['message']}', 'info')
+                talkback_message = attributes['message']
+                self._log(f'Talkback message: {talkback_message}', 'info')
             case _:
                 raise HardwareMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
