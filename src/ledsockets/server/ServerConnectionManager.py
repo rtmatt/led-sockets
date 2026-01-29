@@ -6,6 +6,7 @@ from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
 from ledsockets.dto.AbstractDto import DTOInvalidAttributesException
+from ledsockets.dto.ClientConnectionInitMessage import ClientConnectionInitMessage
 from ledsockets.dto.ErrorMessage import ErrorMessage
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
@@ -102,21 +103,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await connection.send(error.toJSON())
 
     async def _init_client_connection(self, client):
-        payload = {
-            "type": "client_init",
-            "attributes": {
-                "hardware_is_connected": self._hardware_connection is not None,
-                "message": "Hello, client!"
-            },
-            "relationships": {
-                "hardware_state": {
-                    "data": self._hardware_state.toDict()
-                }
-            }
-        }
-        # Future-state in case client expands beyond websocket
+        payload = ClientConnectionInitMessage(self._hardware_connection is not None, "Hello, client!", self._hardware_state)
         websocket = client.get('connection')
-        await websocket.send(json.dumps(payload))
+        await websocket.send(payload.toJSON())
 
     def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
