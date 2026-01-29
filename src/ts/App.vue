@@ -134,6 +134,7 @@ function onButtonClick() {
   if (ws) {
     const payload: PatchHardwareState = {
       type: 'patch_hardware_state',
+      id: '',
       attributes: { on: !status.value },
     };
     ws.send(JSON.stringify(payload));
