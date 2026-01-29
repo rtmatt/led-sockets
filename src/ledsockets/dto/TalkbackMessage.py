@@ -2,15 +2,13 @@ from ledsockets.dto.AbstractDto import AbstractDto
 
 
 class TalkbackMessage(AbstractDto):
-    def __init__(self, message, id=""):
-        self.message = message
-        self.id = id
+    TYPE = 'talkback_message'
 
-    def get_json_data(self):
+    def __init__(self, message, id=""):
+        AbstractDto.__init__(self, id)
+        self.message = message
+
+    def get_attributes(self):
         return {
-            "type": 'talkback_message',
-            "id": self.id,
-            "attributes": {
-                "message": self.message
-            }
+            "message": self.message
         }
