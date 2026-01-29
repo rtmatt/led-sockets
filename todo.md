@@ -19,7 +19,7 @@
 - [x] Update LED states during reconnect process
 
 # Server
-- [ ] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
+- [x] Pass simple messages as JSON.  Only do this if it becomes functionally prudent
 
 # Client
 - [x] A "reset" button on the board would be neat; resets state and reconnects to server
@@ -36,7 +36,7 @@
     button)
 - [x] Disable checkbox/button when disconnected
 - [x] proper type narrowing
-- [ ] add ids to json:api objects across full suite
+- [x] add ids to json:api objects across full suite
 
 # Misc Python
 - [ ] configure base/root logger

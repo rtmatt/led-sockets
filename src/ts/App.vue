@@ -4,7 +4,7 @@ import {
   type HardwareStateAttributes,
   isClientConnectionInitMessage,
   isHardwareConnectionMessage,
-  isHardwareStateMessage,
+  isHardwareState,
   isSocketMessage,
   type PatchHardwareState,
 } from './types';
@@ -94,7 +94,7 @@ function openConnection() {
       console.warn(data);
     }
     if (isSocketMessage(payload)) {
-      if (isHardwareStateMessage(payload)) {
+      if (isHardwareState(payload)) {
         updateState(payload.attributes);
       } else if (isHardwareConnectionMessage(payload)) {
         updateState(payload.relationships.hardware_state.data.attributes);
@@ -102,6 +102,8 @@ function openConnection() {
       } else if (isClientConnectionInitMessage(payload)) {
         updateState(payload.relationships.hardware_state.data.attributes);
         isHardwareConnected.value = payload.attributes.hardware_is_connected;
+      } else {
+        console.warn('Unprocessed message received');
       }
     }
 
@@ -132,6 +134,7 @@ function onButtonClick() {
   if (ws) {
     const payload: PatchHardwareState = {
       type: 'patch_hardware_state',
+      id: '',
       attributes: { on: !status.value },
     };
     ws.send(JSON.stringify(payload));

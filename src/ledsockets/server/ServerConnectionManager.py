@@ -2,9 +2,15 @@ import asyncio
 import json
 from abc import ABC, abstractmethod
 
+from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
+from ledsockets.dto.AbstractDto import DTOInvalidAttributesException
+from ledsockets.dto.ClientConnectionInitMessage import ClientConnectionInitMessage
+from ledsockets.dto.ErrorMessage import ErrorMessage
+from ledsockets.dto.HardwareState import HardwareState
+from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
 
 
@@ -45,12 +51,11 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     Handles connection management, routing and other business logic
     """
     LOGGER_NAME = 'ledsockets.server.handler'
-    DEFAULT_HARDWARE_STATE = {"on": False}
     VALID_INIT_TYPES = ['init_client', 'init_hardware']
 
     def __init__(self):
         Logs.__init__(self)
-        self._hardware_state = None
+        self._hardware_state: HardwareState = HardwareState()
         self._hardware_connection = None
         self._client_connections = {}
         self._hardware_lock = asyncio.Lock()
@@ -82,6 +87,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             case 'patch_hardware_state':
                 self._log('Passing message to hardware', 'info')
                 await self._send_message_to_hardware(message)
+            case 'talkback_message':
+                talkback_message = payload['attributes']['message']
+                self._log(f'Client talkback message: {talkback_message}', 'info')
             case _:
                 raise ClientMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
@@ -90,29 +98,15 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         async for message in connection:
             try:
                 await self._handle_client_message(message)
-            except ClientMessageException:
+            except ClientMessageException as e:
                 self._log_exception(f"Ignoring invalid message: {e}")
-                await connection.send(f"Message had no effect ({e})")
+                error = ErrorMessage(f"Message had no effect ({e})")
+                await connection.send(error.toJSON())
 
     async def _init_client_connection(self, client):
-        payload = {
-            "type": "client_init",
-            "attributes": {
-                "hardware_is_connected": self._hardware_connection is not None,
-                "message": "Hello, client!"
-            },
-            "relationships": {
-                "hardware_state": {
-                    "data": {
-                        "type": "hardware_state",
-                        "attributes": self._hardware_state
-                    }
-                }
-            }
-        }
-        # Future-state in case client expands beyond websocket
+        payload = ClientConnectionInitMessage(self._hardware_connection is not None, "Hello, client!", self._hardware_state)
         websocket = client.get('connection')
-        await websocket.send(json.dumps(payload))
+        await websocket.send(payload.toJSON())
 
     def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
@@ -124,21 +118,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         return client
 
-    def get_hardware_connection_payload(self):
-        return {
-            "type": "hardware_connection",
-            "attributes": {
-                "is_connected": self._hardware_connection is not None
-            },
-            "relationships": {
-                "hardware_state": {
-                    "data": {
-                        "type": "hardware_state",
-                        "attributes": self._hardware_state
-                    }
-                }
-            }
-        }
+    def get_hardware_connection_status_payload(self):
+        hardware_is_connected = self._hardware_connection is not None
+        return HardwareConnectionMessage(hardware_is_connected, self._hardware_state).toDict()
 
     async def _broadcast_to_clients(self, message):
         if not self._client_connections:
@@ -177,10 +159,10 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     async def _handle_hardware_disconnect(self):
         self._log(f'Hardware disconnected', 'info')
         self._hardware_connection = None
-        self._hardware_state = None
+        self._hardware_state = HardwareState()
 
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)', 'info')
-        payload = self.get_hardware_connection_payload()
+        payload = self.get_hardware_connection_status_payload()  # @todo: rename for maintainability; this is the current status payload not the payload upon connection
         await self._broadcast_to_clients(json.dumps(payload))
 
     async def _handle_hardware_message(self, message):
@@ -202,8 +184,11 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         match payload_type:
             case 'hardware_state':
                 # This is trusting of the hardware client.  However, we trust them more than ourselves to know what their state looks like.  At least for now
-                self._hardware_state = attributes
-                self._log(f"Hardware state updated: {self._hardware_state}", 'info')
+                self._hardware_state = HardwareState.from_attributes(attributes)
+                self._log(f"Hardware state updated: {self._hardware_state.get_attributes()}", 'info')
+            case 'talkback_message':
+                talkback_message = attributes['message']
+                self._log(f'Talkback message: {talkback_message}', 'info')
             case _:
                 raise HardwareMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
@@ -216,14 +201,15 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._handle_hardware_message(message)
             except HardwareMessageException as e:
                 self._log(f"Ignoring invalid Hardware message: {e}", 'warning')
-                await connection.send(f"Message had no effect ({e})")
+                error = ErrorMessage(f"Message had no effect ({e})")
+                await connection.send(error.toJSON())
 
     async def _init_hardware_connection(self, hardware):
         connection = hardware.get('connection')
+        payload = TalkbackMessage("Hello, hardware").toJSON()
+        asyncio.create_task(connection.send(payload))
 
-        asyncio.create_task(connection.send("Hello, hardware"))
-
-        payload = self.get_hardware_connection_payload()
+        payload = self.get_hardware_connection_status_payload()
         await self._broadcast_to_clients(json.dumps(payload))
 
     def _record_hardware_connection(self, websocket: ServerConnection, payload):
@@ -233,17 +219,20 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             is_init = payload_type == 'init_hardware'
             if not is_init:
                 raise InvalidHardwareInitPayloadException(f'Invalid event type "{payload_type}"')
-            state = payload['relationships']['hardware_state']['data']['attributes']
-            if not state:
+            state_attributes = payload['relationships']['hardware_state']['data']['attributes']
+            if not state_attributes:
                 raise InvalidHardwareInitPayloadException('"hardware_state" data missing/invalid')
+            hardware_state = HardwareState.from_attributes(state_attributes)
         except KeyError as e:
             raise InvalidHardwareInitPayloadException(f'Payload missing key: {e}') from e
+        except DTOInvalidAttributesException as e:
+            raise InvalidHardwareInitPayloadException(f'{e}') from e
 
         self._hardware_connection = {
             "id": websocket.id,
             "connection": websocket
         }
-        self._hardware_state = state
+        self._hardware_state = hardware_state
 
         return self._hardware_connection
 
@@ -285,11 +274,14 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         except InitPayloadInvalidException as e:
             message = str(e)
             self._log_exception(message)
-            await websocket.send(message)
+            error = ErrorMessage(message)
+            await websocket.send(error.toJSON())
         except InvalidHardwareInitPayloadException as e:
             message = f'Hardware Init Error: {e}'
             self._log_exception('Hardware Init Error')
-            await websocket.send(message)
+            error = ErrorMessage(message)
+            await websocket.send(error.toJSON())
         except HardwareAlreadyConnectedException as e:
             self._log('Hardware already connected; aborting connection', 'warning')
-            await websocket.send("Hardware already connected.  Buh bye now.")
+            error = ErrorMessage("Hardware already connected.  Buh bye now.")
+            await websocket.send(error.toJSON())

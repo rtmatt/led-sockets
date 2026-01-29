@@ -9,6 +9,7 @@ from ledsockets.board.Board import Board
 from ledsockets.board.BoardController import BoardController
 from ledsockets.board.MockBoard import MockBoard
 from ledsockets.contracts.MessageBroker import MessageBroker
+from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.log.LogsConcern import Logs
 
 
@@ -22,14 +23,10 @@ class ClientEventHandler(Logs):
     Handles events received by a hardware Client (connection)
     """
     LOGGER_NAME = 'ledsockets.client.handler'
-    DEFAULT_STATE = {
-        "on": False,
-        "message": ""
-    }
 
     def __init__(self, board: AbstractBoard):
         Logs.__init__(self)
-        self._state = self.DEFAULT_STATE.copy()
+        self._state = HardwareState()
         self._board: AbstractBoard = board
         self._board.add_button_press_handler(self._on_board_button_press)
         self._connection = None
@@ -66,15 +63,16 @@ class ClientEventHandler(Logs):
 
     @property
     def state_payload(self):
-        return {"type": 'hardware_state', "attributes": self.state}
+        return self._state.toDict()
+
 
     def _on_board_button_press(self, button=None):
         self._log('Button press received')
-        if self._state['on']:
+        if self._state.on:
             self._board.buzz(False)
             self._board.set_blue(False)
-            self._state['on'] = False
-            self._state['message'] = "I turned it off"
+            self._state.on = False
+            self._state.message = "I turned it off"
             try:
                 asyncio.run_coroutine_threadsafe(
                     self._message_broker.send_message(json.dumps(self.state_payload)),
@@ -122,6 +120,10 @@ class ClientEventHandler(Logs):
         try:
             payload = json.loads(message)
             payload_type = payload['type']
+            if payload_type == 'talkback_message':
+                message_ = payload['attributes']['message']
+                self._log(f'Talkback message received: "{message_}"')
+                return
             if payload_type != 'patch_hardware_state':
                 raise ServerMessageException(f'Unsupported payload type "{payload_type}"')
             on = payload['attributes']['on']
@@ -131,13 +133,13 @@ class ClientEventHandler(Logs):
             raise ServerMessageException(f"Payload key error: {e}") from e
 
         if on:
-            self._state['on'] = True
-            self._state['message'] = "The light and buzzer are on.  If I'm around it's annoying me."
+            self._state.on = True
+            self._state.message = "The light and buzzer are on.  If I'm around it's annoying me."
             self._board.set_blue(True)
             self._board.buzz()
         else:
-            self._state['on'] = False
-            self._state['message'] = ""
+            self._state.on = False
+            self._state.message = ""
             self._board.set_blue(False)
             self._board.buzz(False)
 
