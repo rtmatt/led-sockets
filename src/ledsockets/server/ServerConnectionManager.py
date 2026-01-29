@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
+from ledsockets.dto.AbstractDto import DTOInvalidAttributesException
+from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
 
@@ -46,12 +48,11 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     Handles connection management, routing and other business logic
     """
     LOGGER_NAME = 'ledsockets.server.handler'
-    DEFAULT_HARDWARE_STATE = {"on": False}
     VALID_INIT_TYPES = ['init_client', 'init_hardware']
 
     def __init__(self):
         Logs.__init__(self)
-        self._hardware_state = None
+        self._hardware_state: HardwareState = HardwareState()
         self._hardware_connection = None
         self._client_connections = {}
         self._hardware_lock = asyncio.Lock()
@@ -107,10 +108,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             },
             "relationships": {
                 "hardware_state": {
-                    "data": {
-                        "type": "hardware_state",
-                        "attributes": self._hardware_state
-                    }
+                    "data": self._hardware_state.toDict()
                 }
             }
         }
@@ -136,10 +134,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             },
             "relationships": {
                 "hardware_state": {
-                    "data": {
-                        "type": "hardware_state",
-                        "attributes": self._hardware_state
-                    }
+                    "data": self._hardware_state.toDict()
                 }
             }
         }
@@ -181,7 +176,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     async def _handle_hardware_disconnect(self):
         self._log(f'Hardware disconnected', 'info')
         self._hardware_connection = None
-        self._hardware_state = None
+        self._hardware_state = HardwareState()
 
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)', 'info')
         payload = self.get_hardware_connection_payload()
@@ -206,8 +201,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         match payload_type:
             case 'hardware_state':
                 # This is trusting of the hardware client.  However, we trust them more than ourselves to know what their state looks like.  At least for now
-                self._hardware_state = attributes
-                self._log(f"Hardware state updated: {self._hardware_state}", 'info')
+                self._hardware_state = HardwareState.from_attributes(attributes)
+                self._log(f"Hardware state updated: {self._hardware_state.get_attributes()}", 'info')
             case 'talkback_message':
                 talkback_message = attributes['message']
                 self._log(f'Talkback message: {talkback_message}', 'info')
@@ -240,17 +235,20 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             is_init = payload_type == 'init_hardware'
             if not is_init:
                 raise InvalidHardwareInitPayloadException(f'Invalid event type "{payload_type}"')
-            state = payload['relationships']['hardware_state']['data']['attributes']
-            if not state:
+            state_attributes = payload['relationships']['hardware_state']['data']['attributes']
+            if not state_attributes:
                 raise InvalidHardwareInitPayloadException('"hardware_state" data missing/invalid')
+            hardware_state = HardwareState.from_attributes(state_attributes)
         except KeyError as e:
             raise InvalidHardwareInitPayloadException(f'Payload missing key: {e}') from e
+        except DTOInvalidAttributesException as e:
+            raise InvalidHardwareInitPayloadException(f'{e}') from e
 
         self._hardware_connection = {
             "id": websocket.id,
             "connection": websocket
         }
-        self._hardware_state = state
+        self._hardware_state = hardware_state
 
         return self._hardware_connection
 
