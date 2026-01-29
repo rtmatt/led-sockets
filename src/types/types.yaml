@@ -39,3 +39,7 @@ relationships:
 ---
 type: patch_hardware_state
 attributes: Partial<hardware_state.attributes>
+---
+type: talkback_message
+attributes:
+  message: ""
