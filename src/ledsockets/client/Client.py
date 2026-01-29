@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 import signal
 from functools import partial
@@ -11,6 +10,7 @@ from ledsockets.board.Board import Board
 from ledsockets.board.MockBoard import MockBoard
 from ledsockets.client.ClientEventHandler import ClientEventHandler
 from ledsockets.contracts.MessageBroker import MessageBroker
+from ledsockets.dto.HardwareInitMessage import HardwareInitMessage
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
 
@@ -98,15 +98,8 @@ class Client(Logs, MessageBroker):
         self._connection = connection
         self._handler.on_connection_open(connection)
         self._log('Sending init message', 'debug')
-        payload = {
-            "type": "init_hardware",
-            "relationships": {
-                "hardware_state": {
-                    "data": self._handler.state_payload
-                }
-            }
-        }
-        await self.send_message(json.dumps(payload), connection)
+        payload = HardwareInitMessage(self._handler.state)
+        await self.send_message(payload.toJSON(), connection)
 
     async def _on_connection_opened(self, connection):
         # Reset active reconnect config on successful connections
