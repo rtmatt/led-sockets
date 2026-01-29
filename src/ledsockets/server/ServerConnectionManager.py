@@ -70,6 +70,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
 
+    # @todo: add connection param for attaching to relays
     async def _handle_client_message(self, message):
         self._log(f'Client message: {message}', 'debug')
 
@@ -85,6 +86,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         match payload_type:
             case 'patch_hardware_state':
+                # @todo: attach client info
                 self._log('Passing message to hardware', 'info')
                 await self._send_message_to_hardware(message)
             case 'talkback_message':
@@ -168,6 +170,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     async def _handle_hardware_message(self, message):
         self._log(f'Hardware says: {message}', 'debug')
 
+        # @todo: I like this method of parsing and following best so far; normalize to all
         try:
             payload = json.loads(message)
             payload_type = payload['type']
@@ -198,6 +201,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         connection = hardware.get('connection')
         async for message in connection:
             try:
+                # @todo: pass connection param for consistency
                 await self._handle_hardware_message(message)
             except HardwareMessageException as e:
                 self._log(f"Ignoring invalid Hardware message: {e}", 'warning')
