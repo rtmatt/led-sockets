@@ -2,6 +2,10 @@ import json
 from abc import ABC, abstractmethod
 
 
+class DTOInvalidAttributesException(Exception):
+    pass
+
+
 class AbstractDto(ABC):
     TYPE = ''
 
@@ -9,6 +13,11 @@ class AbstractDto(ABC):
         self.id = id
 
     def toJSON(self):
+        result = self.toDict()
+
+        return json.dumps(result)
+
+    def toDict(self):
         result = {
             "type": self.TYPE,
             "id": self.id,
@@ -17,8 +26,7 @@ class AbstractDto(ABC):
         relationships = self.get_relationships()
         if relationships:
             result['relationships'] = relationships
-
-        return json.dumps(result)
+        return result
 
     @abstractmethod
     def get_attributes(self):
