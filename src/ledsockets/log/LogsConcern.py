@@ -7,7 +7,7 @@ class Logs:
     def __init__(self):
         self._logger = get_logger(self.LOGGER_NAME)
 
-    def _log(self, msg, level='debug',*args):
+    def _log(self, msg, level='debug', *args):
         valid_levels = [
             'debug',
             'info',
@@ -19,10 +19,9 @@ class Logs:
             self._logger.warning('Invalid log level')
             msg = f"{level}: {msg}"
             level = 'debug'
-        getattr(self._logger, level)(f"{msg}",*args)
+        getattr(self._logger, level)(f"{msg}", *args)
 
-
-    def _log_exception(self,message):
+    def _log_exception(self, message):
         self.logger.exception(message)
 
     @property
