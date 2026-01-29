@@ -210,7 +210,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 self._log(f"Hardware state updated: {self._hardware_state}", 'info')
             case 'talkback_message':
                 # @todo: test and verify
-                self._log(f'Talkback message: {attributes['message']}','info')
+                self._log(f'Talkback message: {attributes['message']}', 'info')
             case _:
                 raise HardwareMessageException(f"Unrecognized message type: \"{payload_type}\"")
 

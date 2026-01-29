@@ -41,7 +41,7 @@ class Server(Logs):
         self._log(f"Connection dropped from {websocket.remote_address}", 'info')
 
     def _record_connection(self, websocket: ServerConnection):
-        self._log(f"Connection received from {websocket.remote_address}",'info')
+        self._log(f"Connection received from {websocket.remote_address}", 'info')
         self._connections.add(websocket)
 
     async def _handle_connection(self, websocket):
@@ -71,7 +71,7 @@ class Server(Logs):
 
     async def _disconnect_all(self):
         if self._connections:
-            self._log(f"Closing active connections ({len(self._connections)})",'info')
+            self._log(f"Closing active connections ({len(self._connections)})", 'info')
             tasks = [self._close_connection(conn) for conn in list(self._connections)]
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -82,11 +82,11 @@ class Server(Logs):
         async with serve(self._handle_connection, self._host, self._port) as server:
             await self._stop_event.wait()
             await self._stop_server()
-        self._log(self.KILL_MESSAGE,'info')
+        self._log(self.KILL_MESSAGE, 'info')
 
     def _trigger_shutdown(self, sig):
         if self._shutting_down:
-            self._log(f"Already shutting down (received {sig.name})...",'warning')
+            self._log(f"Already shutting down (received {sig.name})...", 'warning')
             return
         self._log(f'[{sig.name}] Triggering shutdown', 'info')
         self._shutting_down = True

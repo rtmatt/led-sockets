@@ -122,7 +122,7 @@ class ClientEventHandler(Logs):
         try:
             payload = json.loads(message)
             payload_type = payload['type']
-            if payload_type=='talkback_message':
+            if payload_type == 'talkback_message':
                 message_ = payload['attributes']['message']
                 self._log(f'Talkback message received: "{message_}"')
                 return
