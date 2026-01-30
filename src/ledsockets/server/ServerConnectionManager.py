@@ -75,7 +75,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         self._log(f'Client message: {message}', 'debug')
 
         try:
-            payload = json.loads(message)
+            payload = json.loads(message)['data']
             payload_type = payload['type']
             if not payload_type:
                 raise ClientMessageException("No payload type provided")
@@ -106,9 +106,11 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await connection.send(error.toJSON())
 
     async def _init_client_connection(self, client):
-        payload = ClientConnectionInitMessage(self._hardware_connection is not None, "Hello, client!", self._hardware_state)
+        hardware_is_connected = self._hardware_connection is not None
+        message = "Hello, client!"
+        payload = ClientConnectionInitMessage(hardware_is_connected, message, self._hardware_state).toDict()
         websocket = client.get('connection')
-        await websocket.send(payload.toJSON())
+        await websocket.send(json.dumps({"data": payload}))
 
     def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
@@ -164,15 +166,15 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         self._hardware_state = HardwareState()
 
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)', 'info')
-        payload = self.get_hardware_connection_status_payload()  # @todo: rename for maintainability; this is the current status payload not the payload upon connection
-        await self._broadcast_to_clients(json.dumps(payload))
+        payload = self.get_hardware_connection_status_payload()
+        await self._broadcast_to_clients(json.dumps({"data": payload}))
 
     async def _handle_hardware_message(self, message):
         self._log(f'Hardware says: {message}', 'debug')
 
         # @todo: I like this method of parsing and following best so far; normalize to all
         try:
-            payload = json.loads(message)
+            payload = json.loads(message)['data']
             payload_type = payload['type']
             attributes = payload['attributes']
             if not payload_type:
@@ -206,15 +208,15 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             except HardwareMessageException as e:
                 self._log(f"Ignoring invalid Hardware message: {e}", 'warning')
                 error = ErrorMessage(f"Message had no effect ({e})")
-                await connection.send(error.toJSON())
+                await connection.send(json.dumps({"error": error.toDict()}))
 
     async def _init_hardware_connection(self, hardware):
         connection = hardware.get('connection')
-        payload = TalkbackMessage("Hello, hardware").toJSON()
-        asyncio.create_task(connection.send(payload))
+        payload = TalkbackMessage("Hello, hardware").toDict()
+        asyncio.create_task(connection.send(json.dumps({"data": payload})))
 
         payload = self.get_hardware_connection_status_payload()
-        await self._broadcast_to_clients(json.dumps(payload))
+        await self._broadcast_to_clients(json.dumps({"data": payload}))
 
     def _record_hardware_connection(self, websocket: ServerConnection, payload):
         self._log(f'Initializing hardware from {websocket.remote_address}', 'info')
@@ -244,7 +246,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         init_message = await websocket.recv()
         self._log(f'Init message received: {init_message}', 'debug')
         try:
-            payload = json.loads(init_message)
+            payload = json.loads(init_message)['data']
             payload_type = payload['type']
             if payload_type not in self.VALID_INIT_TYPES:
                 raise InitPayloadInvalidException(f'Invalid initialization type "{payload_type}"')
@@ -279,13 +281,16 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             message = str(e)
             self._log_exception(message)
             error = ErrorMessage(message)
-            await websocket.send(error.toJSON())
+            payload = error.toDict()
+            await websocket.send(json.dumps({"error": payload}))
         except InvalidHardwareInitPayloadException as e:
             message = f'Hardware Init Error: {e}'
             self._log_exception('Hardware Init Error')
             error = ErrorMessage(message)
-            await websocket.send(error.toJSON())
+            payload = error.toDict()
+            await websocket.send(json.dumps({"error": payload}))
         except HardwareAlreadyConnectedException as e:
             self._log('Hardware already connected; aborting connection', 'warning')
             error = ErrorMessage("Hardware already connected.  Buh bye now.")
-            await websocket.send(error.toJSON())
+            payload = error.toDict()
+            await websocket.send(json.dumps({"error": payload}))

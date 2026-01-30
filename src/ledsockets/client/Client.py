@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import signal
 from functools import partial
@@ -98,8 +99,8 @@ class Client(Logs, MessageBroker):
         self._connection = connection
         self._handler.on_connection_open(connection)
         self._log('Sending init message', 'debug')
-        payload = HardwareInitMessage(self._handler.state)
-        await self.send_message(payload.toJSON(), connection)
+        payload = HardwareInitMessage(self._handler.state).toDict()
+        await self.send_message(json.dumps({"data": payload}), connection)
 
     async def _on_connection_opened(self, connection):
         # Reset active reconnect config on successful connections
@@ -197,8 +198,8 @@ class Client(Logs, MessageBroker):
         if self._connection:
             self._log('Broadcasting impending death', 'debug')
             try:
-                payload = TalkbackMessage(self.CONNECTION_CLOSING_MESSAGE).toJSON()
-                await asyncio.create_task(self.send_message(payload, self._connection))
+                payload = TalkbackMessage(self.CONNECTION_CLOSING_MESSAGE).toDict()
+                await asyncio.create_task(self.send_message(json.dumps({"data": payload}), self._connection))
             except Exception as e:
                 self._log(f"Failed to send shutdown message: {e}", 'warning')
 

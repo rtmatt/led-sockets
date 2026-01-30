@@ -70,10 +70,13 @@ function openConnection() {
     connecting.value = false;
     connected.value = true;
     socketStatus.value = 'Open';
+    const initPayload = {
+      id: '',
+      type: 'init_client',
+    };
     socket.send(
       JSON.stringify({
-        id: '',
-        type: 'init_client',
+        data: initPayload,
       }),
     );
   }, { signal: controller.signal });
@@ -94,8 +97,10 @@ function openConnection() {
     const { data } = event;
     let payload: unknown;
     try {
-      payload = JSON.parse(data);
-    } catch (error) {
+      const parse = JSON.parse(data);
+      payload = parse['data'];
+      error = parse['error'];
+    } catch (e) {
       console.warn(data);
     }
     if (isSocketMessage(payload)) {
@@ -142,7 +147,7 @@ function onButtonClick() {
       id: '',
       attributes: { on: !status.value },
     };
-    ws.send(JSON.stringify(payload));
+    ws.send(JSON.stringify({ data: payload }));
   } else {
     throw Error('No active connection');
   }

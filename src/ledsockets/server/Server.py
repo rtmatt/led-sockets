@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import signal
 from functools import partial
@@ -63,8 +64,8 @@ class Server(Logs):
         try:
             # Add a timeout so a single slow client doesn't hang the whole shutdown
             async with asyncio.timeout(2.0):
-                payload = TalkbackMessage(self.SHUTDOWN_PAYLOAD).toJSON()
-                await websocket.send(payload)
+                payload = TalkbackMessage(self.SHUTDOWN_PAYLOAD).toDict()
+                await websocket.send(json.dumps({"data": payload}))
                 await websocket.close(self.CLOSE_CODE)
         except Exception:
             self._log_exception('Exception during client disconnect')

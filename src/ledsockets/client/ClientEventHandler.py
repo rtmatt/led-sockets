@@ -65,7 +65,6 @@ class ClientEventHandler(Logs):
     def state_payload(self):
         return self._state.toDict()
 
-
     def _on_board_button_press(self, button=None):
         self._log('Button press received')
         if self._state.on:
@@ -74,8 +73,9 @@ class ClientEventHandler(Logs):
             self._state.on = False
             self._state.message = "I turned it off"
             try:
+                payload = self._state.toDict()
                 asyncio.run_coroutine_threadsafe(
-                    self._message_broker.send_message(json.dumps(self.state_payload)),
+                    self._message_broker.send_message(json.dumps({"data": payload})),
                     self._event_loop
                 )
             except AttributeError as e:
@@ -118,7 +118,7 @@ class ClientEventHandler(Logs):
 
     async def _process_message(self, message: str):
         try:
-            payload = json.loads(message)
+            payload = json.loads(message)['data']
             payload_type = payload['type']
             if payload_type == 'talkback_message':
                 message_ = payload['attributes']['message']
@@ -143,7 +143,8 @@ class ClientEventHandler(Logs):
             self._board.set_blue(False)
             self._board.buzz(False)
 
-        await self.message_broker.send_message(json.dumps(self.state_payload))
+        payload = self._state.toDict()
+        await self.message_broker.send_message(json.dumps({"data": payload}))
 
     async def on_message(self, message, connection):
         self._log(f'Handling message: {message}', 'debug')
