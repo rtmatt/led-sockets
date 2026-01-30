@@ -126,19 +126,21 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         hardware_is_connected = self._hardware_connection is not None
         return HardwareConnectionMessage(hardware_is_connected, self._hardware_state).toDict()
 
-    async def _broadcast_to_clients(self, message):
+    async def _broadcast_to_clients(self, message, send_to_ids=None, exclude_ids=None):
         if not self._client_connections:
             return
-
-        self._log(f"Sending message to {len(self._client_connections)} client(s): {message}", 'info')
-        client_ids = list(self._client_connections.keys())
-        tasks = [self._client_connections[cid].get('connection').send(message) for cid in client_ids]
+        target_ids = send_to_ids if send_to_ids else list(self._client_connections.keys())
+        if (exclude_ids):
+            target_ids = list(set(target_ids) - set(exclude_ids))
+        log_message = f"Broadcasting message to {len(target_ids)}/{len(self._client_connections)} client(s)"
+        self._log(log_message, 'info')
+        tasks = [self._client_connections[cid].get('connection').send(message) for cid in target_ids]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Get all client connections causing an exception; log them as a dead connection
         dead_clients = []
-        for client_id, result in zip(client_ids, results):
+        for client_id, result in zip(target_ids, results):
             if isinstance(result, Exception):
                 self._log(f'Client {client_id} connection exception: {result}', 'warning')
                 dead_clients.append(client_id)
