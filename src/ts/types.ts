@@ -118,3 +118,35 @@ export function isHardwareConnectionMessage(message: SocketMessage): message is 
   const { data } = hardware_state;
   return isHardwareState(data);
 }
+
+export function isUiMessage(message: SocketMessage): message is UIMessage {
+  if (message.type !== 'ui_message') {
+    return false;
+  }
+  const {
+    attributes,
+  } = message;
+  if (!attributes) {
+    return true;
+  }
+  if (!('message' in attributes && typeof attributes.message == 'string')) {
+    return false;
+  }
+  return true;
+}
+
+export function getUiMessageRelation(message: SocketMessage): UIMessage | null {
+  const {
+    relationships,
+  } = message;
+  if (!relationships) {
+    return null;
+  }
+  if (!relationships.ui_message) {
+    return null;
+  }
+  if (isUiMessage(relationships.ui_message.data)) {
+    return relationships.ui_message.data;
+  }
+  return null
+}

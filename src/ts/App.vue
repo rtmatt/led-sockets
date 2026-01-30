@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, type Ref, ref, useTemplateRef } from 'vue';
 import {
+  getUiMessageRelation,
   type HardwareStateAttributes,
   isClientConnectionInitMessage,
   isHardwareConnectionMessage,
   isHardwareState,
   isSocketMessage,
+  isUiMessage,
   type PatchHardwareState,
   type UiMessageAttributes,
 } from './types';
@@ -110,8 +112,15 @@ function openConnection() {
       } else if (isClientConnectionInitMessage(payload)) {
         updateState(payload.relationships.hardware_state.data.attributes);
         isHardwareConnected.value = payload.attributes.hardware_is_connected;
+      } else if (isUiMessage(payload)) {
+        addMessage(payload.attributes);
       } else {
         console.warn('Unprocessed message received');
+      }
+
+      const uiMessageRelation = getUiMessageRelation(payload);
+      if (uiMessageRelation) {
+        addMessage(uiMessageRelation.attributes);
       }
     }
 
