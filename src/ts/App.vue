@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, type Ref } from 'vue';
+import { computed, nextTick, onMounted, type Ref, ref, useTemplateRef } from 'vue';
 import {
   type HardwareStateAttributes,
   isClientConnectionInitMessage,
@@ -15,12 +15,20 @@ const {
   PROD,
 } = import.meta.env;
 
+type UiMessage = {
+  message: string;
+}
+
 let message: Ref<string> = ref('');
 let socketStatus: Ref<string> = ref('Closed');
 let connected: Ref<boolean> = ref(false);
 let connecting: Ref<boolean> = ref(false);
 let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
+const uiMessages: Ref<UiMessage[]> = ref([{
+  message: 'I am a message',
+}]);
+const messageContainer = useTemplateRef('scrollParent');
 
 let abortController: AbortController | undefined;
 let ws: WebSocket | null = null;
@@ -148,6 +156,16 @@ function reconnect() {
   connect();
 }
 
+function addMessage(message: UiMessage) {
+  uiMessages.value.push(message);
+  nextTick(() => {
+    const messagesScrollContainer: HTMLElement | null = messageContainer.value;
+    if (messagesScrollContainer) {
+      messagesScrollContainer.scrollTop = messagesScrollContainer.scrollHeight - messagesScrollContainer.offsetHeight;
+    }
+  });
+}
+
 onMounted(() => {
   connect();
 });
@@ -166,11 +184,45 @@ const showReconnect = computed(() => {
   }
   return true;
 });
+const displayMessages = computed(() => {
+  return uiMessages.value.slice();
+});
 const checkboxChecked = computed(() => {
   return status.value;
 });
 </script>
+<style>
+.messages-container {
+  border: solid 1px #efefef;
+  height: 250px;
+  position: relative;
+  overflow-y: auto;
+}
 
+.messages-container__content {
+  box-sizing: border-box;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 8px;
+}
+
+p {
+  margin: 0
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    padding: 0;
+    margin: 0;
+  }
+}
+</style>
 <template>
   <div>
     <button @click="onButtonClick" :disabled="buttonDisabled">Click Me</button>
@@ -188,6 +240,16 @@ const checkboxChecked = computed(() => {
         <dt>Hardware Status:</dt>
         <dd>{{ hardwareStatus }}</dd>
       </dl>
+    </div>
+    <div class="messages-container" ref="scrollParent">
+      <div class="messages-container__content">
+        <ul>
+          <li v-for="uiMessage in displayMessages">
+            <p>{{ uiMessage.message }}
+            </p>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
