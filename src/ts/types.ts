@@ -1,21 +1,29 @@
-
 export interface SocketMessage {
   attributes?: Record<string, any> | null;
   relationships?: Record<string, any>;
   type: string;
-  id: string
+  id: string;
+}
+
+export interface ErrorMessage extends SocketMessage {
+  attributes: {
+    message: string
+  }
+  type: 'error',
+}
+
+export type UiMessageAttributes = {
+  message: string;
+}
+
+export interface UIMessage extends SocketMessage {
+  attributes: UiMessageAttributes
+  type: 'ui_message',
 }
 
 export type HardwareStateAttributes = {
   on: boolean;
   message: string;
-}
-
-export interface ErrorMessage extends SocketMessage {
-  attributes: {
-      message: string
-  }
-  type: 'error',
 }
 
 export interface HardwareState extends SocketMessage {

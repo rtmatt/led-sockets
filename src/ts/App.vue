@@ -7,6 +7,7 @@ import {
   isHardwareState,
   isSocketMessage,
   type PatchHardwareState,
+  type UiMessageAttributes,
 } from './types';
 
 const {
@@ -15,17 +16,13 @@ const {
   PROD,
 } = import.meta.env;
 
-type UiMessage = {
-  message: string;
-}
-
 let message: Ref<string> = ref('');
 let socketStatus: Ref<string> = ref('Closed');
 let connected: Ref<boolean> = ref(false);
 let connecting: Ref<boolean> = ref(false);
 let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
-const uiMessages: Ref<UiMessage[]> = ref([{
+const uiMessages: Ref<UiMessageAttributes[]> = ref([{
   message: 'I am a message',
 }]);
 const messageContainer = useTemplateRef('scrollParent');

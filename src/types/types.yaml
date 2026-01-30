@@ -47,3 +47,7 @@ attributes:
 type: error
 attributes:
   message: ""
+---
+type: ui_message
+attributes:
+  message: ""
