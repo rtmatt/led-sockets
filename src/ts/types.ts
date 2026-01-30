@@ -39,6 +39,9 @@ export interface HardwareConnectionMessage extends SocketMessage {
     hardware_state: {
       data: HardwareState
     }
+    ui_message: {
+      data: UIMessage
+    }
   }
   type: 'hardware_connection',
 }
@@ -50,6 +53,9 @@ export interface ClientConnectionInitMessage extends SocketMessage {
   relationships: {
     hardware_state: {
       data: HardwareState
+    }
+    ui_message: {
+      data: UIMessage
     }
   }
   type: 'client_init',
