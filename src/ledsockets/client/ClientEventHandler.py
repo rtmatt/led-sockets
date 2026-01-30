@@ -61,10 +61,6 @@ class ClientEventHandler(Logs):
     def state(self):
         return self._state.copy()
 
-    @property
-    def state_payload(self):
-        return self._state.toDict()
-
     def _on_board_button_press(self, button=None):
         self._log('Button press received')
         if self._state.on:
