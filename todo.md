@@ -5,6 +5,7 @@
       for critical alerts"
 - [ ] security
 - [ ] add output/display on pi showing how many people are connected to it
+- [ ] fix JSON:API structures to live within `data` key in responses
 
 ## Board
 
