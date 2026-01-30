@@ -2,13 +2,13 @@ import asyncio
 import json
 from abc import ABC, abstractmethod
 
-from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
 from ledsockets.dto.AbstractDto import DTOInvalidAttributesException
 from ledsockets.dto.ClientConnectionInitMessage import ClientConnectionInitMessage
 from ledsockets.dto.ErrorMessage import ErrorMessage
+from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
