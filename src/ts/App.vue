@@ -22,9 +22,7 @@ let connected: Ref<boolean> = ref(false);
 let connecting: Ref<boolean> = ref(false);
 let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
-const uiMessages: Ref<UiMessageAttributes[]> = ref([{
-  message: 'I am a message',
-}]);
+const uiMessages: Ref<UiMessageAttributes[]> = ref([]);
 const messageContainer = useTemplateRef('scrollParent');
 
 let abortController: AbortController | undefined;
