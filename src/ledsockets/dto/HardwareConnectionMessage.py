@@ -1,4 +1,5 @@
 from ledsockets.dto.AbstractDto import AbstractDto
+from ledsockets.dto.UiMessage import UiMessage
 
 
 class HardwareConnectionMessage(AbstractDto):
@@ -8,6 +9,8 @@ class HardwareConnectionMessage(AbstractDto):
         super().__init__(id)
         self.is_connected = is_connected
         self.hardware_state = hardware_state
+        message = "Hardware connected" if is_connected else "Hardware disconnected"
+        self._ui_message: UiMessage = UiMessage(message)
 
     def get_attributes(self):
         return {
@@ -18,5 +21,8 @@ class HardwareConnectionMessage(AbstractDto):
         return {
             "hardware_state": {
                 "data": self.hardware_state.toDict()
+            },
+            "ui_message": {
+                "data": self._ui_message.toDict()
             }
         }
