@@ -13,6 +13,7 @@ from ledsockets.dto.ErrorMessage import ErrorMessage
 from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
+from ledsockets.dto.UiMessage import UiMessage
 from ledsockets.log.LogsConcern import Logs
 
 
@@ -71,6 +72,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         client_id = client.id
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
+        payload = UiMessage(f"Client {client.id} disconnected").toDict()
+        await self._broadcast_to_clients(json.dumps({"data": payload}), exclude_ids=[client.id])
 
     # @todo: add connection param for attaching to relays
     async def _handle_client_message(self, message):
@@ -112,6 +115,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         payload = ClientConnectionInitMessage(self.is_hardware_connected, message, self._hardware_state).toDict()
         websocket = client.getConnection()
         await websocket.send(json.dumps({"data": payload}))
+        id = client.id
+        clients_payload = UiMessage(f'Client {id} joined').toDict()
+        await self._broadcast_to_clients(json.dumps({"data": clients_payload}), exclude_ids=[client.id])
 
     def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
