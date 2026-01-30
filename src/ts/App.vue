@@ -156,7 +156,7 @@ function reconnect() {
   connect();
 }
 
-function addMessage(message: UiMessage) {
+function addMessage(message: UiMessageAttributes) {
   uiMessages.value.push(message);
   nextTick(() => {
     const messagesScrollContainer: HTMLElement | null = messageContainer.value;
