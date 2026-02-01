@@ -3,13 +3,14 @@ import json
 from abc import ABC, abstractmethod
 from typing import Dict
 
-from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
 from ledsockets.dto.AbstractDto import DTOInvalidAttributesException
 from ledsockets.dto.ClientConnectionInitMessage import ClientConnectionInitMessage
 from ledsockets.dto.ErrorMessage import ErrorMessage
+from ledsockets.dto.HardwareClient import HardwareClient
+from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.dto.UiClient import UiClient
@@ -58,7 +59,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     def __init__(self):
         Logs.__init__(self)
         self._hardware_state: HardwareState = HardwareState()
-        self._hardware_connection = None
+        self._hardware_connection: HardwareClient | None = None
         self._client_connections: Dict[UiClient] = {}
         self._hardware_lock = asyncio.Lock()
 
@@ -155,7 +156,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
     async def _send_message_to_hardware(self, message):
         if self._hardware_connection:
-            await self._hardware_connection.get('connection').send(message)
+            await self._hardware_connection.connection.send(message)
 
     async def _handle_hardware_disconnect(self):
         self._log(f'Hardware disconnected', 'info')
@@ -195,8 +196,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         await self._broadcast_to_clients(message)
 
-    async def _run_hardware_connection(self, hardware):
-        connection = hardware.get('connection')
+    async def _run_hardware_connection(self, hardware: HardwareClient):
+        connection = hardware.connection
         async for message in connection:
             try:
                 await self._handle_hardware_message(message)
@@ -205,8 +206,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 error = ErrorMessage(f"Message had no effect ({e})")
                 await connection.send(error.toJSON())
 
-    async def _init_hardware_connection(self, hardware):
-        connection = hardware.get('connection')
+    async def _init_hardware_connection(self, hardware: HardwareClient):
+        connection = hardware.connection
         payload = TalkbackMessage("Hello, hardware").toJSON()
         asyncio.create_task(connection.send(payload))
 
@@ -229,10 +230,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         except DTOInvalidAttributesException as e:
             raise InvalidHardwareInitPayloadException(f'{e}') from e
 
-        self._hardware_connection = {
-            "id": websocket.id,
-            "connection": websocket
-        }
+        self._hardware_connection = HardwareClient(str(websocket.id), websocket)
         self._hardware_state = hardware_state
 
         return self._hardware_connection
