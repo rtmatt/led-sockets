@@ -1,6 +1,7 @@
 import asyncio
 import json
 from abc import ABC, abstractmethod
+from typing import Dict
 
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
@@ -61,6 +62,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         Logs.__init__(self)
         self._hardware_state: HardwareState = HardwareState()
         self._hardware_connection: ConnectedHardware | None = None
+        self._client_connections: Dict[ConnectedClient] = {}
         self._client_connections = {}
         self._hardware_lock = asyncio.Lock()
 
