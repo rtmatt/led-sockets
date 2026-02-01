@@ -96,6 +96,7 @@ function openConnection() {
     log('MESSAGE');
     const { data } = event;
     let payload: unknown;
+    let error: unknown;
     try {
       const parse = JSON.parse(data);
       payload = parse['data'];

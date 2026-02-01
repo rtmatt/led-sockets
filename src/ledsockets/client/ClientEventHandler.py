@@ -10,6 +10,7 @@ from ledsockets.board.BoardController import BoardController
 from ledsockets.board.MockBoard import MockBoard
 from ledsockets.contracts.MessageBroker import MessageBroker
 from ledsockets.dto.HardwareState import HardwareState
+from ledsockets.dto.PatchHardwareState import PatchHardwareState
 from ledsockets.log.LogsConcern import Logs
 
 
@@ -139,8 +140,11 @@ class ClientEventHandler(Logs):
             self._board.set_blue(False)
             self._board.buzz(False)
 
-        payload = self._state.toDict()
-        await self.message_broker.send_message(json.dumps({"data": payload}))
+        payload_ = self._state.toDict()
+
+
+        payload_['relationships'] = payload['relationships']
+        await self.message_broker.send_message(json.dumps({"data": payload_}))
 
     async def on_message(self, message, connection):
         self._log(f'Handling message: {message}', 'debug')

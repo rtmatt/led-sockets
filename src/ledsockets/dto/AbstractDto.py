@@ -20,7 +20,7 @@ class AbstractDto(ABC):
     def toDict(self):
         result = {
             "type": self.TYPE,
-            "id": self.id,
+            "id": str(self.id),
             "attributes": self.get_attributes()
         }
         relationships = self.get_relationships()

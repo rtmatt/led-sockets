@@ -12,6 +12,7 @@ from ledsockets.dto.ConnectedHardware import ConnectedHardware
 from ledsockets.dto.ErrorMessage import ErrorMessage
 from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from ledsockets.dto.HardwareState import HardwareState
+from ledsockets.dto.PatchHardwareState import PatchHardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.dto.UiMessage import UiMessage
 from ledsockets.log.LogsConcern import Logs
@@ -76,7 +77,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         await self._broadcast_to_clients(json.dumps({"data": payload}), exclude_ids=[client.id])
 
     # @todo: add connection param for attaching to relays
-    async def _handle_client_message(self, message):
+    async def _handle_client_message(self, message, client: ConnectedClient):
         self._log(f'Client message: {message}', 'debug')
 
         try:
@@ -91,9 +92,11 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         match payload_type:
             case 'patch_hardware_state':
-                # @todo: attach client info
+                dto = PatchHardwareState.fromPayload(payload)
+                dto.setClient(client)
                 self._log('Passing message to hardware', 'info')
-                await self._send_message_to_hardware(message)
+                payload = dto.toDict()
+                await self._send_message_to_hardware(json.dumps({"data": payload}))
             case 'talkback_message':
                 talkback_message = payload['attributes']['message']
                 self._log(f'Client talkback message: {talkback_message}', 'info')
@@ -104,7 +107,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         connection = client.getConnection()
         async for message in connection:
             try:
-                await self._handle_client_message(message)
+                await self._handle_client_message(message, client)
             except ClientMessageException as e:
                 self._log_exception(f"Ignoring invalid message: {e}")
                 error = ErrorMessage(f"Message had no effect ({e})")
@@ -135,8 +138,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         target_ids = send_to_ids if send_to_ids else list(self._client_connections.keys())
         if (exclude_ids):
             target_ids = list(set(target_ids) - set(exclude_ids))
-        log_message = f"Broadcasting message to {len(target_ids)}/{len(self._client_connections)} client(s)"
+        log_message = f"Broadcasting message to {len(target_ids)}/{len(self._client_connections)} client(s):"
         self._log(log_message, 'info')
+        self._log(message, 'debug')
         tasks = [self._client_connections[cid].getConnection().send(message) for cid in target_ids]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -197,13 +201,17 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 # This is trusting of the hardware client.  However, we trust them more than ourselves to know what their state looks like.  At least for now
                 self._hardware_state = HardwareState.from_attributes(attributes)
                 self._log(f"Hardware state updated: {self._hardware_state.get_attributes()}", 'info')
+                # r = payload['relationships']
+                uimessage = UiMessage('Temp test result')
+                payload['relationships']['ui_message'] = {"data": uimessage.toDict()}
+                cs = json.dumps({"data": payload})
+                await self._broadcast_to_clients(cs)
             case 'talkback_message':
                 talkback_message = attributes['message']
                 self._log(f'Talkback message: {talkback_message}', 'info')
+                await self._broadcast_to_clients(message)
             case _:
                 raise HardwareMessageException(f"Unrecognized message type: \"{payload_type}\"")
-
-        await self._broadcast_to_clients(message)
 
     async def _run_hardware_connection(self, hardware: ConnectedHardware):
         connection = hardware.getConnection()
