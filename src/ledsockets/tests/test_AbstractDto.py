@@ -2,6 +2,7 @@
 
 import json
 import unittest
+from typing import Dict
 
 from src.ledsockets.dto.AbstractDto import AbstractDto, DTOInvalidPayloadException
 
@@ -16,10 +17,44 @@ class TestDtoClass(AbstractDto):
     def get_attributes(self):
         return {"name": self.name}
 
+    @classmethod
+    def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
+        inst = cls(id, attributes.get('name'))
+        return inst
+
 
 class TestAbstractDto(unittest.TestCase):
     def setUp(self):
         self.dto = TestDtoClass("123", "Sample Name")
+
+    def test_from_attributes_valid(self):
+        """Test from_attributes correctly initializes an instance."""
+        attributes = {"name": "John Doe"}
+        dto = TestDtoClass.from_attributes(attributes, "001")
+        self.assertEqual(dto.id, "001")
+        self.assertEqual(dto.name, "John Doe")
+
+    def test_from_attributes_invalid(self):
+        """Test from_attributes raises an exception for invalid attributes."""
+        with self.assertRaises(DTOInvalidPayloadException):
+            TestDtoClass.from_attributes("not_a_dict", "001")
+
+    def test_from_dict_valid(self):
+        """Test from_dict correctly parses a valid dictionary."""
+        json_data = {
+            "type": "test_dto",
+            "id": "002",
+            "attributes": {"name": "Jane Doe"}
+        }
+        dto = TestDtoClass.from_dict(json_data)
+        self.assertEqual(dto.id, "002")
+        self.assertEqual(dto.name, "Jane Doe")
+
+    def test_from_dict_invalid(self):
+        """Test from_dict raises an exception for invalid input."""
+        invalid_data = {"type": "wrong_type", "attributes": None}
+        with self.assertRaises(DTOInvalidPayloadException):
+            TestDtoClass.from_dict(invalid_data)
 
     def test_to_dict(self):
         """Test the toDict method constructs a dictionary with correct structure."""

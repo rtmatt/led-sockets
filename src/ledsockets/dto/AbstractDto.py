@@ -77,3 +77,33 @@ class AbstractDto(ABC):
         if (self.relationships):
             if key in self.relationships.keys():
                 del self.relationships[key]
+
+    @classmethod
+    def from_attributes(self, attributes: Dict, id: str = ''):
+        if not isinstance(attributes, Dict):
+            raise DTOInvalidPayloadException('Attributes are not an object')
+        try:
+            return self._inst_from_attributes(attributes, id)
+        except KeyError as e:
+            raise DTOInvalidAttributesException(f'Invalid {self.TYPE} attributes') from e
+
+    @classmethod
+    def from_dict(self, json_data: Dict):
+        if not isinstance(json_data, Dict):
+            raise DTOInvalidAttributesException('Dictionary is not an object')
+
+        type = json_data.get('type')
+        attributes = json_data.get('attributes')
+        id = json_data.get('id')
+
+        if type != self.TYPE:
+            raise DTOInvalidPayloadException('Data type mismatch')
+        if attributes is None:
+            raise DTOInvalidPayloadException('No attributes')
+
+        inst = self.from_attributes(attributes, id)
+        return inst
+
+    @classmethod
+    def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
+        raise Exception(f'"_inst_from_attributes" not defined for {cls.TYPE}')
