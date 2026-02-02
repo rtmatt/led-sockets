@@ -102,6 +102,10 @@ export function isServerStatus(obj: Record<string, any>): obj is ServerStatus {
   return true;
 }
 
+export type UiMessageAttributes = {
+  message: string;
+}
+
 type EventMessage<E extends string, T extends SocketMessage> = [E, { data: T }]
 
 export function isEventMessage(event: unknown): event is EventMessage<any, any> {
