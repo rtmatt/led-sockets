@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 class DTOInvalidAttributesException(Exception):
     pass
 
+class DTOInvalidPayloadException(Exception):
+    pass
 
 class AbstractDto(ABC):
     TYPE = ''

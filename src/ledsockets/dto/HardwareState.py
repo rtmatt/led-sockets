@@ -1,3 +1,5 @@
+from typing import Dict
+
 from ledsockets.dto.AbstractDto import AbstractDto, DTOInvalidAttributesException
 
 
@@ -20,6 +22,8 @@ class HardwareState(AbstractDto):
 
     @classmethod
     def from_attributes(self, attributes):
+        if not isinstance(attributes, Dict):
+            raise DTOInvalidAttributesException('Attributes are not an object')
         inst = HardwareState()
         try:
             inst.on = attributes['on']
