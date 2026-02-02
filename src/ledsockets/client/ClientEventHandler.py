@@ -9,9 +9,11 @@ from ledsockets.board.Board import Board
 from ledsockets.board.BoardController import BoardController
 from ledsockets.board.MockBoard import MockBoard
 from ledsockets.contracts.MessageBroker import MessageBroker
+from ledsockets.dto.AbstractDto import DTOInvalidPayloadException
 from ledsockets.dto.HardwareState import HardwareState
-from ledsockets.dto.PatchHardwareState import PatchHardwareState
+from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
+from ledsockets.support.Message import Message, MessageException
 
 
 class ServerMessageException(Exception):
@@ -70,9 +72,13 @@ class ClientEventHandler(Logs):
             self._state.on = False
             self._state.message = "I turned it off"
             try:
-                payload = self._state.toDict()
                 asyncio.run_coroutine_threadsafe(
-                    self._message_broker.send_message(json.dumps({"data": payload})),
+                    self._message_broker.send_message(json.dumps([
+                        'hardware_updated',
+                        {
+                            "data": self._state.toDict()
+                        }
+                    ])),
                     self._event_loop
                 )
             except AttributeError as e:
@@ -113,21 +119,18 @@ class ClientEventHandler(Logs):
             case _:
                 raise e
 
-    async def _process_message(self, message: str):
+    async def _on_talkback_message(self, message: Message):
         try:
-            payload = json.loads(message)['data']
-            payload_type = payload['type']
-            if payload_type == 'talkback_message':
-                message_ = payload['attributes']['message']
-                self._log(f'Talkback message received: "{message_}"')
-                return
-            if payload_type != 'patch_hardware_state':
-                raise ServerMessageException(f'Unsupported payload type "{payload_type}"')
-            on = payload['attributes']['on']
-        except json.JSONDecodeError as e:
-            raise ServerMessageException(f'Non-JSON payload') from e
+            talkback = TalkbackMessage.from_message(message)
+            self._log(f'Talkback message received: "{talkback.message}"', 'info')
+        except DTOInvalidPayloadException as e:
+            raise ServerMessageException(f'Invalid talkback payload "{e}"')
+
+    async def _on_patch_hardware_state_message(self, message: Message):
+        try:
+            on = message.payload['data']['attributes']['on']
         except KeyError as e:
-            raise ServerMessageException(f"Payload key error: {e}") from e
+            raise ServerMessageException(f'Invalid talkback payload "{e}"')
 
         if on:
             self._state.on = True
@@ -140,11 +143,27 @@ class ClientEventHandler(Logs):
             self._board.set_blue(False)
             self._board.buzz(False)
 
-        payload_ = self._state.toDict()
+        await self.message_broker.send_message(json.dumps([
+            'hardware_updated',
+            {
+                "data": self._state.toDict()
+            }
+        ]))
 
+    async def _process_message(self, message: str):
+        try:
+            message = Message.parse(message)
+            message_type = message.type
+        except MessageException as e:
+            raise ServerMessageException(str(e)) from e
 
-        payload_['relationships'] = payload['relationships']
-        await self.message_broker.send_message(json.dumps({"data": payload_}))
+        match message_type:
+            case 'talkback_message':
+                await self._on_talkback_message(message)
+            case 'patch_hardware_state':
+                await self._on_patch_hardware_state_message(message)
+            case _:
+                raise ServerMessageException(f'Unsupported payload type "{message_type}"')
 
     async def on_message(self, message, connection):
         self._log(f'Handling message: {message}', 'debug')

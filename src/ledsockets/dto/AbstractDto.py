@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 class DTOInvalidAttributesException(Exception):
     pass
 
+class DTOInvalidPayloadException(Exception):
+    pass
 
 class AbstractDto(ABC):
     TYPE = ''
@@ -20,7 +22,7 @@ class AbstractDto(ABC):
     def toDict(self):
         result = {
             "type": self.TYPE,
-            "id": str(self.id),
+            "id": self.id,
             "attributes": self.get_attributes()
         }
         relationships = self.get_relationships()
