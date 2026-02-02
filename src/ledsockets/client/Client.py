@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import signal
 from functools import partial
@@ -10,7 +11,6 @@ from ledsockets.board.Board import Board
 from ledsockets.board.MockBoard import MockBoard
 from ledsockets.client.ClientEventHandler import ClientEventHandler
 from ledsockets.contracts.MessageBroker import MessageBroker
-from ledsockets.dto.HardwareInitMessage import HardwareInitMessage
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
 
@@ -98,8 +98,12 @@ class Client(Logs, MessageBroker):
         self._connection = connection
         self._handler.on_connection_open(connection)
         self._log('Sending init message', 'debug')
-        payload = HardwareInitMessage(self._handler.state)
-        await self.send_message(payload.toJSON(), connection)
+        await self.send_message(json.dumps([
+            'init_hardware',
+            {
+                "data": self._handler.state.toDict()
+            }
+        ]), connection)
 
     async def _on_connection_opened(self, connection):
         # Reset active reconnect config on successful connections
@@ -197,8 +201,12 @@ class Client(Logs, MessageBroker):
         if self._connection:
             self._log('Broadcasting impending death', 'debug')
             try:
-                payload = TalkbackMessage(self.CONNECTION_CLOSING_MESSAGE).toJSON()
-                await asyncio.create_task(self.send_message(payload, self._connection))
+                await asyncio.create_task(self.send_message(json.dumps([
+                    'talkback_message',
+                    {
+                        "data": TalkbackMessage(self.CONNECTION_CLOSING_MESSAGE).toDict()
+                    }
+                ]), self._connection))
             except Exception as e:
                 self._log(f"Failed to send shutdown message: {e}", 'warning')
 
