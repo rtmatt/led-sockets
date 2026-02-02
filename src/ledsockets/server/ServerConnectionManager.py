@@ -1,16 +1,19 @@
 import asyncio
 import json
 from abc import ABC, abstractmethod
+from typing import Dict
 
-from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
 from ledsockets.dto.AbstractDto import DTOInvalidAttributesException
 from ledsockets.dto.ClientConnectionInitMessage import ClientConnectionInitMessage
 from ledsockets.dto.ErrorMessage import ErrorMessage
+from ledsockets.dto.HardwareClient import HardwareClient
+from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
+from ledsockets.dto.UiClient import UiClient
 from ledsockets.log.LogsConcern import Logs
 
 
@@ -56,17 +59,17 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     def __init__(self):
         Logs.__init__(self)
         self._hardware_state: HardwareState = HardwareState()
-        self._hardware_connection = None
-        self._client_connections = {}
+        self._hardware_connection: HardwareClient | None = None
+        self._client_connections: Dict[str, UiClient] = {}
         self._hardware_lock = asyncio.Lock()
 
     @property
     def is_hardware_connected(self):
         return self._hardware_connection is not None
 
-    async def _handle_client_disconnect(self, client):
+    async def _handle_client_disconnect(self, client: UiClient):
         self._log(f'Client disconnected', 'info')
-        client_id = client.get('id')
+        client_id = client.id
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
 
@@ -93,8 +96,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             case _:
                 raise ClientMessageException(f"Unrecognized message type: \"{payload_type}\"")
 
-    async def _run_client_connection(self, client):
-        connection = client.get('connection')
+    async def _run_client_connection(self, client: UiClient):
+        connection = client.connection
         async for message in connection:
             try:
                 await self._handle_client_message(message)
@@ -103,18 +106,16 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 error = ErrorMessage(f"Message had no effect ({e})")
                 await connection.send(error.toJSON())
 
-    async def _init_client_connection(self, client):
-        payload = ClientConnectionInitMessage(self._hardware_connection is not None, "Hello, client!", self._hardware_state)
-        websocket = client.get('connection')
+    async def _init_client_connection(self, client: UiClient):
+        payload = ClientConnectionInitMessage(self._hardware_connection is not None, "Hello, client!",
+                                              self._hardware_state)
+        websocket = client.connection
         await websocket.send(payload.toJSON())
 
     def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
-        client = {
-            "id": websocket.id,
-            "connection": websocket
-        }
-        self._client_connections[client.get("id")] = client
+        client = UiClient(str(websocket.id), websocket)
+        self._client_connections[client.id] = client
 
         return client
 
@@ -128,7 +129,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         self._log(f"Sending message to {len(self._client_connections)} client(s): {message}", 'info')
         client_ids = list(self._client_connections.keys())
-        tasks = [self._client_connections[cid].get('connection').send(message) for cid in client_ids]
+        tasks = [self._client_connections[cid].connection.send(message) for cid in client_ids]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -144,7 +145,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 self._log(f'Dropping dead client connection {client_id}', 'info')
                 # Close the connection just in case it's still active. This will drop any connections we can't successfully send to and remove it from tracking
                 try:
-                    connection: ClientConnection | None = self._client_connections.get(client_id)
+                    client: UiClient | None = self._client_connections.get(client_id)
+                    connection: ClientConnection | None = client.connection if client else None
                     if (connection):
                         # idempotent: closing it again is fine
                         connection.close()
@@ -154,7 +156,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
     async def _send_message_to_hardware(self, message):
         if self._hardware_connection:
-            await self._hardware_connection.get('connection').send(message)
+            await self._hardware_connection.connection.send(message)
 
     async def _handle_hardware_disconnect(self):
         self._log(f'Hardware disconnected', 'info')
@@ -194,8 +196,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         await self._broadcast_to_clients(message)
 
-    async def _run_hardware_connection(self, hardware):
-        connection = hardware.get('connection')
+    async def _run_hardware_connection(self, hardware: HardwareClient):
+        connection = hardware.connection
         async for message in connection:
             try:
                 await self._handle_hardware_message(message)
@@ -204,8 +206,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 error = ErrorMessage(f"Message had no effect ({e})")
                 await connection.send(error.toJSON())
 
-    async def _init_hardware_connection(self, hardware):
-        connection = hardware.get('connection')
+    async def _init_hardware_connection(self, hardware: HardwareClient):
+        connection = hardware.connection
         payload = TalkbackMessage("Hello, hardware").toJSON()
         asyncio.create_task(connection.send(payload))
 
@@ -228,10 +230,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         except DTOInvalidAttributesException as e:
             raise InvalidHardwareInitPayloadException(f'{e}') from e
 
-        self._hardware_connection = {
-            "id": websocket.id,
-            "connection": websocket
-        }
+        self._hardware_connection = HardwareClient(str(websocket.id), websocket)
         self._hardware_state = hardware_state
 
         return self._hardware_connection
