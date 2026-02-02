@@ -75,28 +75,46 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
 
-    async def _handle_client_message(self, message):
-        self._log(f'Client message: {message}', 'debug')
+    async def _on_talkback_message(self, message: Message, source: str):
+        try:
+            talkback = TalkbackMessage.from_message(message)
+            self._log(f'{source} talkback message received: "{talkback.message}"', 'info')
+        except DTOInvalidPayloadException as e:
+            exception_message = f'Invalid talkback payload "{e}"'
+            if source == 'Client':
+                raise ClientMessageException(exception_message)
+            else:
+                raise HardwareMessageException(exception_message)
+
+    async def _on_client_patch_hardware(self, message: Message):
+        self._log('Processing patch hardware state message', 'info')
+        try:
+            model = PartialHardwareState.from_message(message)
+        except DTOInvalidAttributesException as e:
+            raise ClientMessageException(str(e)) from e
+
+        await self._send_message_to_hardware(json.dumps([
+            'patch_hardware_state',
+            {
+                "data": model.toDict()
+            }
+        ]))
+
+    async def _handle_client_message(self, raw_message: str):
+        self._log(f'Client message: {raw_message}', 'debug')
 
         try:
-            payload = json.loads(message)
-            payload_type = payload['type']
-            if not payload_type:
-                raise ClientMessageException("No payload type provided")
-        except json.JSONDecodeError as e:
-            raise ClientMessageException('Non-JSON payload') from e
-        except KeyError as e:
-            raise ClientMessageException(f"Payload key error: {e}") from e
+            message = Message.parse(raw_message)
+        except MessageException as e:
+            raise ClientMessageException(str(e)) from e
 
-        match payload_type:
+        match message.type:
             case 'patch_hardware_state':
-                self._log('Passing message to hardware', 'info')
-                await self._send_message_to_hardware(message)
+                await self._on_client_patch_hardware(message)
             case 'talkback_message':
-                talkback_message = payload['attributes']['message']
-                self._log(f'Client talkback message: {talkback_message}', 'info')
+                await self._on_talkback_message(message, 'Client')
             case _:
-                raise ClientMessageException(f"Unrecognized message type: \"{payload_type}\"")
+                raise ClientMessageException(f"Unrecognized message type: \"{message.type}\"")
 
     async def _run_client_connection(self, client: UiClient):
         connection = client.connection
@@ -108,10 +126,24 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._send_error_message(f"Message had no effect ({e})", connection)
 
     async def _init_client_connection(self, client: UiClient):
-        payload = ClientConnectionInitMessage(self._hardware_connection is not None, "Hello, client!",
-                                              self._hardware_state)
-        websocket = client.connection
-        await websocket.send(payload.toJSON())
+        result_data = self._get_status()
+        result_data['relationships']['ui_client'] = client.toDict()
+        result_data['relationships']['talkback_messages'] = {
+            "data": [TalkbackMessage("Hello, client!").toDict()]
+        }
+        await client.connection.send(json.dumps([
+            'client_init',
+            {
+                "data": result_data
+            }
+        ]))
+        del result_data['relationships']["talkback_messages"]
+        await self._broadcast_to_clients(json.dumps([
+            'client_joined',
+            {
+                "data": result_data
+            }
+        ]), exclude_ids=[client.id])
 
     def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
@@ -120,23 +152,12 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         return client
 
-    def get_hardware_connection_status_payload(self):
-        hardware_is_connected = self._hardware_connection is not None
-        return HardwareConnectionMessage(hardware_is_connected, self._hardware_state).toDict()
-
-    async def _broadcast_to_clients(self, message):
-        if not self._client_connections:
-            return
-
-        self._log(f"Sending message to {len(self._client_connections)} client(s): {message}", 'info')
-        client_ids = list(self._client_connections.keys())
-        tasks = [self._client_connections[cid].connection.send(message) for cid in client_ids]
-
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Get all client connections causing an exception; log them as a dead connection
+    def _prune_dead_clients(self, results_by_id):
+        """
+        Following a sending loop, audit sending results for exceptions and purge the unsuccessful client connections
+        """
         dead_clients = []
-        for client_id, result in zip(client_ids, results):
+        for client_id, result in results_by_id:
             if isinstance(result, Exception):
                 self._log(f'Client {client_id} connection exception: {result}', 'warning')
                 dead_clients.append(client_id)
@@ -155,47 +176,91 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                     pass
                 del self._client_connections[client_id]
 
-    async def _send_message_to_hardware(self, message):
+    async def _broadcast_to_clients(self, message, send_to_ids=None, exclude_ids=None):
+        if not self._client_connections:
+            return
+        target_ids = send_to_ids if send_to_ids else list(self._client_connections.keys())
+        if (exclude_ids):
+            target_ids = list(set(target_ids) - set(exclude_ids))
+        log_message = f"Broadcasting message to {len(target_ids)}/{len(self._client_connections)} client(s):"
+        self._log(log_message, 'info')
+        self._log(message, 'debug')
+        if len(target_ids):
+            tasks = [self._client_connections[cid].connection.send(message) for cid in target_ids]
+
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            self._prune_dead_clients(zip(target_ids, results))
+
+    async def _send_message_to_hardware(self, message: str):
         if self._hardware_connection:
+            self._log(f'Sending message to hardware: "{message}"', 'debug')
             await self._hardware_connection.connection.send(message)
+
+    def _get_status(self):
+        return {
+            "type": "server_status",
+            "id": "",
+            "attributes": {
+                "hardware_is_connected": self.is_hardware_connected
+            },
+            "relationships": {
+                "hardware_state": {
+                    "data": self._hardware_state.toDict()
+                },
+                "ui_clients": {
+                    "data": [self._client_connections[cId].toDict() for cId in list(self._client_connections.keys())]
+                },
+                "hardware_client": {
+                    "data": self._hardware_connection.toDict() if self._hardware_connection else None
+                }
+            }
+        }
 
     async def _handle_hardware_disconnect(self):
         self._log(f'Hardware disconnected', 'info')
         self._hardware_connection = None
         self._hardware_state = HardwareState()
-
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)', 'info')
-        payload = self.get_hardware_connection_status_payload()  # @todo: rename for maintainability; this is the current status payload not the payload upon connection
-        await self._broadcast_to_clients(json.dumps(payload))
+        await self._broadcast_to_clients(json.dumps([
+            'hardware_disconnected',
+            {
+                "data": self._get_status()
+            }
+        ]))
 
-    async def _handle_hardware_message(self, message):
-        self._log(f'Hardware says: {message}', 'debug')
-
+    async def _on_hardware_updated(self, message: Message):
         try:
-            payload = json.loads(message)
-            payload_type = payload['type']
-            attributes = payload['attributes']
-            if not payload_type:
-                raise HardwareMessageException("No payload type provided")
-            if not attributes:
-                raise HardwareMessageException("No payload attributes provided")
-        except json.JSONDecodeError as e:
-            raise HardwareMessageException("Non-JSON payload") from e
+            attributes = message.payload['data']['attributes']
+            hardware_state = HardwareState.from_attributes(attributes)
+        except DTOInvalidAttributesException as e:
+            raise HardwareMessageException(f'{e}') from e
+        except KeyError as e:
+            raise HardwareMessageException(f'Key missing {e}') from e
+        self._hardware_state = hardware_state
+        self._log(f"Hardware state updated: {self._hardware_state.get_attributes()}", 'info')
+        await self._broadcast_to_clients(json.dumps([
+            'hardware_updated',
+            {
+                "data": hardware_state.toDict()
+            }
+        ]))
+
+    async def _handle_hardware_message(self, raw_message: str):
+        self._log(f'Hardware message: {raw_message}', 'debug')
+        try:
+            message = Message.parse(raw_message)
+        except MessageException as e:
+            raise HardwareMessageException(str(e)) from e
         except KeyError as e:
             raise HardwareMessageException(f"Payload key error: {e}") from e
 
-        match payload_type:
-            case 'hardware_state':
-                # This is trusting of the hardware client.  However, we trust them more than ourselves to know what their state looks like.  At least for now
-                self._hardware_state = HardwareState.from_attributes(attributes)
-                self._log(f"Hardware state updated: {self._hardware_state.get_attributes()}", 'info')
+        match message.type:
+            case 'hardware_updated':
+                await self._on_hardware_updated(message)
             case 'talkback_message':
-                talkback_message = attributes['message']
-                self._log(f'Talkback message: {talkback_message}', 'info')
+                await self._on_talkback_message(message, 'Hardware')
             case _:
-                raise HardwareMessageException(f"Unrecognized message type: \"{payload_type}\"")
-
-        await self._broadcast_to_clients(message)
+                raise HardwareMessageException(f'Unrecognized message type: "{message.type}"')
 
     async def _run_hardware_connection(self, hardware: HardwareClient):
         connection = hardware.connection
@@ -208,8 +273,18 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
     async def _init_hardware_connection(self, hardware: HardwareClient):
         connection = hardware.connection
-        payload = TalkbackMessage("Hello, hardware").toJSON()
-        asyncio.create_task(connection.send(payload))
+        asyncio.create_task(connection.send(json.dumps([
+            'talkback_message',
+            {
+                "data": TalkbackMessage("Hello, hardware").toDict()
+            }
+        ])))
+        await self._broadcast_to_clients(json.dumps([
+            'hardware_connected',
+            {
+                "data": self._get_status()
+            }
+        ]))
 
     def _record_hardware_connection(self, websocket: ServerConnection, message: Message):
         self._log(f'Initializing hardware from {websocket.remote_address}', 'info')
