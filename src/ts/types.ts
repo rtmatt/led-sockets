@@ -9,6 +9,15 @@ export function isSocketMessage(message: unknown): message is SocketMessage {
   return !!message && typeof message === 'object' && 'type' in message && !!message.type;
 }
 
+export type UiMessageAttributes = {
+  message: string;
+}
+
+export interface UIMessage extends SocketMessage {
+  attributes: UiMessageAttributes
+  type: 'ui_message',
+}
+
 export type HardwareStateAttributes = {
   on: boolean;
   message: string; // @todo: remove
@@ -68,6 +77,9 @@ type ServerStatus = SocketMessage & {
     hardware_state: {
       data: HardwareState
     },
+    ui_message: {
+      data: UIMessage
+    }
   }
 }
 
@@ -169,3 +181,35 @@ export type HardwareUpdatedMessage = EventMessage<'hardware_updated', HardwareSt
 export type TalkbackMessageMessage = EventMessage<'talkback_message', TalkbackMessage>
 export type PatchHardwareStateMessage = EventMessage<'patch_hardware_state', PatchHardwareState>
 export type ErrorMessage = ['error', { errors: ServerError[] }]
+
+export function isUiMessage(message: SocketMessage): message is UIMessage {
+  if (message.type !== 'ui_message') {
+    return false;
+  }
+  const {
+    attributes,
+  } = message;
+  if (!attributes) {
+    return true;
+  }
+  if (!('message' in attributes && typeof attributes.message == 'string')) {
+    return false;
+  }
+  return true;
+}
+
+export function getUiMessageRelation(message: SocketMessage): UIMessage | null {
+  const {
+    relationships,
+  } = message;
+  if (!relationships) {
+    return null;
+  }
+  if (!relationships.ui_message) {
+    return null;
+  }
+  if (isUiMessage(relationships.ui_message.data)) {
+    return relationships.ui_message.data;
+  }
+  return null
+}

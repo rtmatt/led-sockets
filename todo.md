@@ -1,3 +1,11 @@
+# Next:
+- [ ] Add message flow for updating hardware
+    - Relay client info to hardware
+    - Relay back and say "X/You" blah blah based on client connection
+- [ ] Add client names
+    - assign names on init from faker library
+    - include "preferred name" in init payload based on local storage
+    - maintain assigned names dict to ensure unique names
 # TODO
 - [ ] reconnect/timeout status
     - [ ] "server-side heartbeats (pings/pongs) to detect dead connections, implementing a smart client-side
@@ -5,6 +13,7 @@
       for critical alerts"
 - [ ] security
 - [ ] add output/display on pi showing how many people are connected to it
+- [ ] fix JSON:API structures to live within `data` key in responses
 
 ## Board
 
@@ -17,6 +26,8 @@
 - [ ] ::_handle_message_exception - introduce talkback between server/client on message errors
 
 ## UI Client
+- [ ] Upon socket disconnect, hardware status still shows as connected
+- [ ] If reconnect el is clicked and reconnect fails, el disappears and there's no way to reconnect
 
 ## Misc Python
 - [ ] configure base/root logger

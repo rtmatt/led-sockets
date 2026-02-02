@@ -12,6 +12,7 @@ from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.PartialHardwareState import PartialHardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.dto.UiClient import UiClient
+from ledsockets.dto.UiMessage import UiMessage
 from ledsockets.log.LogsConcern import Logs
 from ledsockets.support.Message import Message, MessageException
 
@@ -74,6 +75,11 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         client_id = client.id
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
+        payload = UiMessage(f"Client {client.id} disconnected").toDict()
+        await self._broadcast_to_clients(json.dumps([
+            'ui_message',
+            {"data": payload}
+        ]), exclude_ids=[client.id])
 
     async def _on_talkback_message(self, message: Message, source: str):
         try:
@@ -86,21 +92,26 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             else:
                 raise HardwareMessageException(exception_message)
 
-    async def _on_client_patch_hardware(self, message: Message):
+    async def _on_client_patch_hardware(self, message: Message, client: UiClient):
         self._log('Processing patch hardware state message', 'info')
         try:
             model = PartialHardwareState.from_message(message)
         except DTOInvalidAttributesException as e:
             raise ClientMessageException(str(e)) from e
-
+        payload = model.toDict()
+        payload['relationships'] = {
+            "client": {
+                "data": client.toDict()
+            }
+        }
         await self._send_message_to_hardware(json.dumps([
             'patch_hardware_state',
             {
-                "data": model.toDict()
+                "data": payload
             }
         ]))
 
-    async def _handle_client_message(self, raw_message: str):
+    async def _handle_client_message(self, raw_message: str, client: UiClient):
         self._log(f'Client message: {raw_message}', 'debug')
 
         try:
@@ -110,7 +121,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         match message.type:
             case 'patch_hardware_state':
-                await self._on_client_patch_hardware(message)
+                await self._on_client_patch_hardware(message, client)
             case 'talkback_message':
                 await self._on_talkback_message(message, 'Client')
             case _:
@@ -120,7 +131,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         connection = client.connection
         async for message in connection:
             try:
-                await self._handle_client_message(message)
+                await self._handle_client_message(message, client)
             except ClientMessageException as e:
                 self._log_exception(f"Ignoring invalid message: {e}")
                 await self._send_error_message(f"Message had no effect ({e})", connection)
@@ -131,6 +142,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         result_data['relationships']['talkback_messages'] = {
             "data": [TalkbackMessage("Hello, client!").toDict()]
         }
+        result_data['relationships']['ui_message'] = {
+            "data": UiMessage(f'You are connected!').toDict()
+        }
         await client.connection.send(json.dumps([
             'client_init',
             {
@@ -138,6 +152,9 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             }
         ]))
         del result_data['relationships']["talkback_messages"]
+        result_data['relationships']['ui_message'] = {
+            "data": UiMessage(f'Client {client.id} joined').toDict()
+        }
         await self._broadcast_to_clients(json.dumps([
             'client_joined',
             {
@@ -172,8 +189,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                     if (connection):
                         # idempotent: closing it again is fine
                         connection.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    self._log_exception('Error dealing with dead client')
                 del self._client_connections[client_id]
 
     async def _broadcast_to_clients(self, message, send_to_ids=None, exclude_ids=None):
@@ -238,10 +255,14 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             raise HardwareMessageException(f'Key missing {e}') from e
         self._hardware_state = hardware_state
         self._log(f"Hardware state updated: {self._hardware_state.get_attributes()}", 'info')
+        payload = hardware_state.toDict()
+        uimessage = UiMessage('Temp test result')
+        payload['relationships'] = {}
+        payload['relationships']['ui_message'] = {"data": uimessage.toDict()}
         await self._broadcast_to_clients(json.dumps([
             'hardware_updated',
             {
-                "data": hardware_state.toDict()
+                "data": payload
             }
         ]))
 
@@ -266,6 +287,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         connection = hardware.connection
         async for message in connection:
             try:
+                # @todo: pass connection param for consistency
                 await self._handle_hardware_message(message)
             except HardwareMessageException as e:
                 self._log(f"Ignoring invalid Hardware message: {e}", 'warning')

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, type Ref } from 'vue';
+import { computed, nextTick, onMounted, type Ref, ref, useTemplateRef } from 'vue';
 import {
+  getUiMessageRelation,
   type ErrorMessage,
   type HardwareStateAttributes,
   type InitClientMessage,
@@ -9,10 +10,12 @@ import {
   isHardwareState,
   isServerStatus,
   isTalkbackMessage,
+  isUiMessage,
   type PatchHardwareStateMessage,
   type ServerError,
   type SocketMessage,
   type TalkbackMessageMessage,
+  type UiMessageAttributes,
 } from './types';
 
 const {
@@ -27,6 +30,8 @@ let connected: Ref<boolean> = ref(false);
 let connecting: Ref<boolean> = ref(false);
 let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
+const uiMessages: Ref<UiMessageAttributes[]> = ref([]);
+const messageContainer = useTemplateRef('scrollParent');
 
 let abortController: AbortController | undefined;
 let ws: WebSocket | null = null;
@@ -156,9 +161,19 @@ function openConnection() {
           log(`Talkback received: ${payload.attributes.message}`);
         }
         break;
+      case 'ui_message':
+        if (isUiMessage(payload)) {
+          addMessage(payload.attributes);
+        }
+        break;
       default:
         console.warn('Unprocessed message received: ' + event_type);
         break;
+    }
+
+    const uiMessageRelation = getUiMessageRelation(payload);
+    if (uiMessageRelation) {
+      addMessage(uiMessageRelation.attributes);
     }
 
   }, { signal: controller.signal });
@@ -210,6 +225,16 @@ function reconnect() {
   connect();
 }
 
+function addMessage(message: UiMessageAttributes) {
+  uiMessages.value.push(message);
+  nextTick(() => {
+    const messagesScrollContainer: HTMLElement | null = messageContainer.value;
+    if (messagesScrollContainer) {
+      messagesScrollContainer.scrollTop = messagesScrollContainer.scrollHeight - messagesScrollContainer.offsetHeight;
+    }
+  });
+}
+
 onMounted(() => {
   connect();
 });
@@ -228,11 +253,45 @@ const showReconnect = computed(() => {
   }
   return true;
 });
+const displayMessages = computed(() => {
+  return uiMessages.value.slice();
+});
 const checkboxChecked = computed(() => {
   return status.value;
 });
 </script>
+<style>
+.messages-container {
+  border: solid 1px #efefef;
+  height: 250px;
+  position: relative;
+  overflow-y: auto;
+}
 
+.messages-container__content {
+  box-sizing: border-box;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 8px;
+}
+
+p {
+  margin: 0
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    padding: 0;
+    margin: 0;
+  }
+}
+</style>
 <template>
   <div>
     <button @click="onButtonClick" :disabled="buttonDisabled">Click Me</button>
@@ -250,6 +309,16 @@ const checkboxChecked = computed(() => {
         <dt>Hardware Status:</dt>
         <dd>{{ hardwareStatus }}</dd>
       </dl>
+    </div>
+    <div class="messages-container" ref="scrollParent">
+      <div class="messages-container__content">
+        <ul>
+          <li v-for="uiMessage in displayMessages">
+            <p>{{ uiMessage.message }}
+            </p>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
