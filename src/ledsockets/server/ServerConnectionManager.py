@@ -6,15 +6,14 @@ from typing import Dict
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
-from ledsockets.dto.AbstractDto import DTOInvalidAttributesException
-from ledsockets.dto.ClientConnectionInitMessage import ClientConnectionInitMessage
-from ledsockets.dto.ErrorMessage import ErrorMessage
+from ledsockets.dto.AbstractDto import DTOInvalidAttributesException, DTOInvalidPayloadException
 from ledsockets.dto.HardwareClient import HardwareClient
-from ledsockets.dto.HardwareConnectionMessage import HardwareConnectionMessage
 from ledsockets.dto.HardwareState import HardwareState
+from ledsockets.dto.PartialHardwareState import PartialHardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.dto.UiClient import UiClient
 from ledsockets.log.LogsConcern import Logs
+from ledsockets.support.Message import Message, MessageException
 
 
 # <editor-fold desc="Exceptions">
@@ -212,22 +211,13 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         payload = TalkbackMessage("Hello, hardware").toJSON()
         asyncio.create_task(connection.send(payload))
 
-        payload = self.get_hardware_connection_status_payload()
-        await self._broadcast_to_clients(json.dumps(payload))
-
-    def _record_hardware_connection(self, websocket: ServerConnection, payload):
+    def _record_hardware_connection(self, websocket: ServerConnection, message: Message):
         self._log(f'Initializing hardware from {websocket.remote_address}', 'info')
         try:
-            payload_type = payload['type']
-            is_init = payload_type == 'init_hardware'
-            if not is_init:
-                raise InvalidHardwareInitPayloadException(f'Invalid event type "{payload_type}"')
-            state_attributes = payload['relationships']['hardware_state']['data']['attributes']
-            if not state_attributes:
-                raise InvalidHardwareInitPayloadException('"hardware_state" data missing/invalid')
-            hardware_state = HardwareState.from_attributes(state_attributes)
+            attributes = message.payload['data']['attributes']
+            hardware_state = HardwareState.from_attributes(attributes)
         except KeyError as e:
-            raise InvalidHardwareInitPayloadException(f'Payload missing key: {e}') from e
+            raise InvalidHardwareInitPayloadException(f'Invalid attributes payload: "{e}"') from e
         except DTOInvalidAttributesException as e:
             raise InvalidHardwareInitPayloadException(f'{e}') from e
 
@@ -236,37 +226,42 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         return self._hardware_connection
 
+    async def _handle_hardware_connection(self, websocket: ServerConnection, message: Message):
+        async with self._hardware_lock:
+            if self.is_hardware_connected:
+                raise HardwareAlreadyConnectedException()
+
+            hardware = self._record_hardware_connection(websocket, message)
+        try:
+            await self._init_hardware_connection(hardware)
+            await self._run_hardware_connection(hardware)
+        finally:
+            await self._handle_hardware_disconnect()
+
+    async def _handle_client_connection(self, websocket: ServerConnection, message: Message):
+        client = self._record_client_connection(websocket)
+        try:
+            await self._init_client_connection(client)
+            await self._run_client_connection(client)
+        finally:
+            await self._handle_client_disconnect(client)
+
     async def _handle(self, websocket: ServerConnection):
         init_message = await websocket.recv()
         self._log(f'Init message received: {init_message}', 'debug')
         try:
-            payload = json.loads(init_message)
-            payload_type = payload['type']
-            if payload_type not in self.VALID_INIT_TYPES:
-                raise InitPayloadInvalidException(f'Invalid initialization type "{payload_type}"')
-        except json.JSONDecodeError as e:
-            raise InitPayloadInvalidException(f'Malformed initialization payload') from e
-        except KeyError as e:
-            raise InitPayloadInvalidException(f'Missing initialization payload key: {e}') from e
+            message = Message.parse(init_message)
+            message_type = message.type
+        except MessageException as e:
+            raise InitPayloadInvalidException(str(e)) from e
 
-        # route initialization based on entity type
-        if payload_type == 'init_hardware':
-            async with self._hardware_lock:
-                if self.is_hardware_connected:
-                    raise HardwareAlreadyConnectedException()
-                hardware = self._record_hardware_connection(websocket, payload)
-            try:
-                await self._init_hardware_connection(hardware)
-                await self._run_hardware_connection(hardware)
-            finally:
-                await self._handle_hardware_disconnect()
-        elif payload_type == 'init_client':
-            client = self._record_client_connection(websocket)
-            try:
-                await self._init_client_connection(client)
-                await self._run_client_connection(client)
-            finally:
-                await self._handle_client_disconnect(client)
+        match message_type:
+            case 'init_hardware':
+                await self._handle_hardware_connection(websocket, message)
+            case 'init_client':
+                await self._handle_client_connection(websocket, message)
+            case _:
+                raise InitPayloadInvalidException(f'Invalid initialization type "{message_type}"')
 
     async def handle(self, websocket: ServerConnection):
         try:
