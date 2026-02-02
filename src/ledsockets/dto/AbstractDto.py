@@ -2,6 +2,8 @@ import json
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
+from ledsockets.support.Message import Message
+
 
 class DTOInvalidAttributesException(Exception):
     pass
@@ -107,3 +109,16 @@ class AbstractDto(ABC):
     @classmethod
     def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
         raise Exception(f'"_inst_from_attributes" not defined for {cls.TYPE}')
+
+    @classmethod
+    def from_message(self, message: Message):
+        try:
+            payload_data = message.payload['data']
+            type_ = payload_data['type']
+            if (type_ != self.TYPE):
+                raise DTOInvalidPayloadException(f'Invalid source type "{type_}"')
+
+            instance = self.from_dict(payload_data)
+            return instance
+        except KeyError as e:
+            raise DTOInvalidPayloadException(f'Invalid {self.TYPE} payload/attributes') from e

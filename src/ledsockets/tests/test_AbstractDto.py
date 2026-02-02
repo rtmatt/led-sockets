@@ -4,6 +4,7 @@ import json
 import unittest
 from typing import Dict
 
+from ledsockets.support.Message import Message
 from src.ledsockets.dto.AbstractDto import AbstractDto, DTOInvalidPayloadException
 
 
@@ -140,6 +141,38 @@ class TestAbstractDto(unittest.TestCase):
         """Test removing a nonexistent relationship doesn't raise an error."""
         self.dto.remove_relationship("nonexistent")
         self.assertIsNone(self.dto.get_relationships())
+
+    def test_from_message_valid(self):
+        """Test from_message correctly initializes an instance."""
+        json_data = {
+            "type": "test_dto",
+            "id": "002",
+            "attributes": {"name": "Jane Doe"}
+        }
+        dto = TestDtoClass.from_message(Message('doesnt_matter', {"data": json_data}))
+        self.assertEqual(dto.id, "002")
+        self.assertEqual(dto.name, "Jane Doe")
+
+    def test_from_message_invalid_type(self):
+        """Test from_attributes raises an exception for invalid source types."""
+        json_data = {
+            "type": "test_dtos",
+            "id": "002",
+            "attributes": {"name": "Jane Doe"}
+        }
+        with self.assertRaises(DTOInvalidPayloadException):
+            TestDtoClass.from_message(Message('doesnt_matter', {"data": json_data}))
+
+    def test_from_message_invalid_attributes(self):
+        """Test from_attributes raises an exception for invalid source types."""
+        json_data = {
+            "type": "test_dtos",
+            "id": "002",
+            "attributes": {"name": "Jane Doe"}
+        }
+
+        with self.assertRaises(DTOInvalidPayloadException):
+            TestDtoClass.from_message(Message('doesnt_matter', {"data": json_data}))
 
 
 if __name__ == '__main__':
