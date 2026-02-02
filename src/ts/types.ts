@@ -1,112 +1,171 @@
-
 export interface SocketMessage {
   attributes?: Record<string, any> | null;
   relationships?: Record<string, any>;
   type: string;
-  id: string
-}
-
-export type HardwareStateAttributes = {
-  on: boolean;
-  message: string;
-}
-
-export interface ErrorMessage extends SocketMessage {
-  attributes: {
-      message: string
-  }
-  type: 'error',
-}
-
-export interface HardwareState extends SocketMessage {
-  attributes: HardwareStateAttributes
-  type: 'hardware_state',
-}
-
-export interface HardwareConnectionMessage extends SocketMessage {
-  attributes: {
-    is_connected: boolean
-  }
-  relationships: {
-    hardware_state: {
-      data: HardwareState
-    }
-  }
-  type: 'hardware_connection',
-}
-
-export interface ClientConnectionInitMessage extends SocketMessage {
-  attributes: {
-    hardware_is_connected: boolean
-  }
-  relationships: {
-    hardware_state: {
-      data: HardwareState
-    }
-  }
-  type: 'client_init',
-}
-
-export interface PatchHardwareState extends SocketMessage {
-  attributes: Partial<HardwareStateAttributes>;
-  type: 'patch_hardware_state';
+  id: string;
 }
 
 export function isSocketMessage(message: unknown): message is SocketMessage {
   return !!message && typeof message === 'object' && 'type' in message && !!message.type;
 }
 
-export function isHardwareState(message: SocketMessage): message is HardwareState {
-  if (message.type !== 'hardware_state') {
+export type HardwareStateAttributes = {
+  on: boolean;
+  message: string; // @todo: remove
+}
+
+export interface PatchHardwareState extends SocketMessage {
+  attributes: Partial<HardwareStateAttributes>;
+  type: 'hardware_state';
+}
+
+export type HardwareState = SocketMessage & {
+  attributes: HardwareStateAttributes
+  type: 'hardware_state',
+}
+
+export function isHardwareState(obj: Record<string, any>): obj is HardwareState {
+  const {
+    type,
+    attributes,
+  } = obj;
+  if (type !== 'hardware_state') {
     return false;
   }
-  const { attributes } = message;
-  if (!attributes) {
-    return true;
+  if (!attributes || typeof attributes !== 'object') {
+    throw TypeError('"hardware_state" missing "attributes"');
   }
   return 'on' in attributes && typeof attributes.on == 'boolean' && 'message' in attributes && typeof attributes.message == 'string';
 }
 
-export function isClientConnectionInitMessage(message: SocketMessage): message is ClientConnectionInitMessage {
-  if (message.type !== 'client_init') {
-    return false;
+type TalkbackMessage = SocketMessage & {
+  type: 'talkback_message'
+  attributes: {
+    message: string
   }
-  const {
-    attributes,
-    relationships,
-  } = message;
-  if (!attributes || !relationships) {
-    return true;
-  }
-  if (!('hardware_is_connected' in attributes && typeof attributes.hardware_is_connected == 'boolean')) {
-    return false;
-  }
-  const { hardware_state } = relationships;
-  if (!hardware_state) {
-    return false;
-  }
-  const { data } = hardware_state;
-  return isHardwareState(data);
 }
 
-export function isHardwareConnectionMessage(message: SocketMessage): message is HardwareConnectionMessage {
-  if (message.type !== 'hardware_connection') {
+export function isTalkbackMessage(obj: Record<string, any>): obj is TalkbackMessage {
+  const {
+    type,
+    attributes,
+  } = obj;
+  if (type !== 'talkback_message') {
     return false;
   }
+  if (!attributes || typeof attributes !== 'object') {
+    throw TypeError('"talkback_message" missing "attributes"');
+  }
+  return 'message' in attributes && typeof attributes.message == 'string';
+}
+
+type ServerStatus = SocketMessage & {
+  type: 'server_status',
+  attributes: {
+    hardware_is_connected: boolean
+  },
+  relationships: {
+    hardware_state: {
+      data: HardwareState
+    },
+  }
+}
+
+export function isServerStatus(obj: Record<string, any>): obj is ServerStatus {
   const {
+    type,
     attributes,
     relationships,
-  } = message;
-  if (!attributes || !relationships) {
-    return true;
-  }
-  if (!('is_connected' in attributes && typeof attributes.is_connected == 'boolean')) {
+  } = obj;
+  if (type !== 'server_status') {
     return false;
   }
-  const { hardware_state } = relationships;
-  if (!hardware_state) {
-    return false;
+  if (!attributes || typeof attributes !== 'object') {
+    throw TypeError('"server_status" missing "attributes"');
   }
-  const { data } = hardware_state;
-  return isHardwareState(data);
+  if (!('hardware_is_connected' in attributes) || typeof attributes.hardware_is_connected !== 'boolean') {
+    throw TypeError('"server_status" invalid attributes');
+  }
+  if (!relationships || typeof relationships !== 'object') {
+    throw TypeError('"server_status" missing "relationships"');
+  }
+  const {
+    hardware_state,
+    // @todo: add predicates for these if they ever end up in use
+    // ui_clients,
+    // hardware_client,
+  } = relationships;
+  if (!isHardwareState(hardware_state.data)) {
+    throw TypeError('"server_status" missing "hardware_state" relationship');
+  }
+
+  return true;
 }
+
+type EventMessage<E extends string, T extends SocketMessage> = [E, { data: T }]
+
+export function isEventMessage(event: unknown): event is EventMessage<any, any> {
+  if (!Array.isArray(event)) {
+    return false;
+  }
+  const event_name = event[0];
+  if (typeof event_name !== 'string') {
+    return false;
+  }
+  const payload = event[1];
+  if (!(payload && typeof payload === 'object')) {
+    return false;
+  }
+
+  return 'data' in payload && payload.data && isSocketMessage(payload.data);
+}
+
+type InitClient = SocketMessage & {
+  type: 'ui_client',
+}
+export type ServerError = {
+  detail: string
+}
+
+function isServerError(obj: unknown): obj is ServerError {
+  return !!obj && typeof obj === 'object' && 'detail' in obj && typeof obj.detail === 'string';
+}
+
+export function isErrorMessage(event: unknown): event is ErrorMessage {
+  if (!Array.isArray(event)) {
+    return false
+  }
+  const event_name = event[0];
+  if (event_name !== 'error') {
+    return false
+  }
+  const payload = event[1];
+  if (!(payload && typeof payload === 'object'))   {
+    throw TypeError('Payload is not an object')
+  }
+  const { errors } = payload;
+  if (!errors) {
+    throw TypeError('Errors key not present')
+  }
+  if (!Array.isArray(errors)) {
+    throw TypeError('Errors is not an array')
+  }
+
+  for (let i = 0; i < errors.length; i++) {
+    const datum = errors[i];
+    if (!isServerError(datum)) {
+      throw TypeError('Datum is not an Error')
+    }
+  }
+
+  return true;
+}
+
+export type InitClientMessage = EventMessage<'init_client', InitClient>
+export type ClientInitMessage = EventMessage<'client_init', ServerStatus>
+export type HardwareDisconnectedMessage = EventMessage<'hardware_disconnected', ServerStatus>
+export type HardwareConnectedMessage = EventMessage<'hardware_connected', ServerStatus>
+export type HardwareUpdatedMessage = EventMessage<'hardware_updated', HardwareState>
+export type TalkbackMessageMessage = EventMessage<'talkback_message', TalkbackMessage>
+export type PatchHardwareStateMessage = EventMessage<'patch_hardware_state', PatchHardwareState>
+export type ErrorMessage = ['error', { errors: ServerError[] }]
