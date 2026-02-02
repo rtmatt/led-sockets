@@ -1,3 +1,5 @@
+from typing import Dict
+
 from ledsockets.dto.AbstractDto import AbstractDto
 
 
@@ -16,3 +18,9 @@ class UiClient(AbstractDto):
         return {
             "name": self.name
         }
+
+    @classmethod
+    def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
+        inst = cls(id, None)
+        inst.name = attributes['name']
+        return inst
