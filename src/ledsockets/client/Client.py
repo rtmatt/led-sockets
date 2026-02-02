@@ -48,15 +48,15 @@ class Client(Logs, MessageBroker):
         self._reconnect_intervals = self.AUTO_RECONNECT_INTERVAL_CONFIG.copy()
         self._log('Created', 'debug')
 
-    async def send_message(self, message, connection=None):
+    async def send_message(self, message: str, connection=None):
         self._log(f"Sending message: {message}", 'debug')
-        target = connection if connection else self._connection
+        target: ClientConnection = connection if connection else self._connection
         if not target:
             raise Exception('Unable to send message without a target')
 
         await target.send(message)
 
-    async def _on_message(self, message, connection):
+    async def _on_message(self, message: str, connection):
         if self._shutting_down:
             return
 
