@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, type Ref } from 'vue';
 import {
+  type ErrorMessage,
   type HardwareStateAttributes,
-  isClientConnectionInitMessage,
-  isHardwareConnectionMessage,
+  type InitClientMessage,
+  isErrorMessage,
+  isEventMessage,
   isHardwareState,
-  isSocketMessage,
-  type PatchHardwareState,
+  isServerStatus,
+  isTalkbackMessage,
+  type PatchHardwareStateMessage,
+  type ServerError,
+  type SocketMessage,
+  type TalkbackMessageMessage,
 } from './types';
 
 const {
@@ -65,11 +71,17 @@ function openConnection() {
     connecting.value = false;
     connected.value = true;
     socketStatus.value = 'Open';
+    const payload: InitClientMessage = [
+      'init_client',
+      {
+        data: {
+          id: '',
+          type: 'ui_client',
+        },
+      },
+    ];
     socket.send(
-      JSON.stringify({
-        id: '',
-        type: 'init_client',
-      }),
+      JSON.stringify(payload),
     );
   }, { signal: controller.signal });
 
@@ -87,24 +99,66 @@ function openConnection() {
   socket.addEventListener('message', (event: MessageEvent) => {
     log('MESSAGE');
     const { data } = event;
-    let payload: unknown;
+
+    let event_type: string;
+    let event_payload: { data: SocketMessage };
+    let parsed: unknown;
     try {
-      payload = JSON.parse(data);
+      parsed = JSON.parse(data);
     } catch (error) {
       console.warn(data);
     }
-    if (isSocketMessage(payload)) {
-      if (isHardwareState(payload)) {
-        updateState(payload.attributes);
-      } else if (isHardwareConnectionMessage(payload)) {
-        updateState(payload.relationships.hardware_state.data.attributes);
-        isHardwareConnected.value = payload.attributes.is_connected;
-      } else if (isClientConnectionInitMessage(payload)) {
-        updateState(payload.relationships.hardware_state.data.attributes);
-        isHardwareConnected.value = payload.attributes.hardware_is_connected;
-      } else {
-        console.warn('Unprocessed message received');
-      }
+    if (isErrorMessage(parsed)) {
+      const parsedElement: ErrorMessage[1] = parsed[1];
+      parsedElement.errors.forEach((e: ServerError) => {
+        console.error(`Server Error: ${e.detail}`);
+      });
+      return;
+    }
+
+    if (!isEventMessage(parsed)) {
+      console.warn('Ignoring non-event-message');
+      return;
+    }
+    [event_type, event_payload] = parsed;
+    const payload: SocketMessage = event_payload.data;
+    switch (event_type) {
+      case'client_init':
+        if (isServerStatus(payload)) {
+          updateState(payload.relationships.hardware_state.data.attributes);
+          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+        }
+        break;
+      case 'hardware_disconnected':
+        if (isServerStatus(payload)) {
+          updateState(payload.relationships.hardware_state.data.attributes);
+          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+        }
+        break;
+      case 'hardware_connected':
+        if (isServerStatus(payload)) {
+          updateState(payload.relationships.hardware_state.data.attributes);
+          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+        }
+        break;
+      case 'hardware_updated':
+        if (isHardwareState(payload)) {
+          updateState(payload.attributes);
+        }
+        break;
+      case 'client_joined':
+        if (isServerStatus(payload)) {
+          log(`Client join received and unprocessed`);
+        }
+        break;
+      case 'talkback_message':
+        if (isTalkbackMessage(payload)) {
+          log(`Talkback received: ${payload.attributes.message}`);
+        }
+        break;
+      default:
+        console.warn('Unprocessed message received: ' + event_type);
+        break;
     }
 
   }, { signal: controller.signal });
@@ -132,11 +186,19 @@ function connect() {
 function onButtonClick() {
   log('BUTTON CLICK');
   if (ws) {
-    const payload: PatchHardwareState = {
-      type: 'patch_hardware_state',
-      id: '',
-      attributes: { on: !status.value },
-    };
+    const payload: PatchHardwareStateMessage = [
+      'patch_hardware_state',
+      {
+        data: {
+          id: '',
+          type: 'hardware_state',
+          attributes: {
+            on: !status.value,
+          },
+        },
+      },
+    ];
+
     ws.send(JSON.stringify(payload));
   } else {
     throw Error('No active connection');
