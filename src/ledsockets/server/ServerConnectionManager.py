@@ -6,8 +6,7 @@ from typing import Dict
 from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
-from ledsockets.dto.AbstractDto import DTOInvalidAttributesException
-from ledsockets.dto.AbstractDto import DTOInvalidPayloadException
+from ledsockets.dto.AbstractDto import DTOInvalidAttributesException, DTOInvalidPayloadException
 from ledsockets.dto.HardwareClient import HardwareClient
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.PartialHardwareState import PartialHardwareState
