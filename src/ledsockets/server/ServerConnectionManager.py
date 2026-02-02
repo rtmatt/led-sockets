@@ -63,7 +63,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         Logs.__init__(self)
         self._hardware_state: HardwareState = HardwareState()
         self._hardware_connection: HardwareClient | None = None
-        self._client_connections: Dict[UiClient] = {}
+        self._client_connections: Dict[str, UiClient] = {}
         self._hardware_lock = asyncio.Lock()
 
     @property
@@ -98,14 +98,12 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             model = PartialHardwareState.from_message(message)
         except DTOInvalidAttributesException as e:
             raise ClientMessageException(str(e)) from e
-
         payload = model.toDict()
         payload['relationships'] = {
             "client": {
                 "data": client.toDict()
             }
         }
-
         await self._send_message_to_hardware(json.dumps([
             'patch_hardware_state',
             {

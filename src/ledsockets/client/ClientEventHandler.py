@@ -11,6 +11,7 @@ from ledsockets.board.MockBoard import MockBoard
 from ledsockets.contracts.MessageBroker import MessageBroker
 from ledsockets.dto.AbstractDto import DTOInvalidPayloadException
 from ledsockets.dto.HardwareState import HardwareState
+from ledsockets.dto.PartialHardwareState import PartialHardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.log.LogsConcern import Logs
 from ledsockets.support.Message import Message, MessageException
@@ -128,11 +129,11 @@ class ClientEventHandler(Logs):
 
     async def _on_patch_hardware_state_message(self, message: Message):
         try:
-            on = message.payload['data']['attributes']['on']
+            dto = PartialHardwareState.from_message(message)
         except KeyError as e:
             raise ServerMessageException(f'Invalid talkback payload "{e}"')
 
-        if on:
+        if dto.on:
             self._state.on = True
             self._state.message = "The light and buzzer are on.  If I'm around it's annoying me."
             self._board.set_blue(True)
