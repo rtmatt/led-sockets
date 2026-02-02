@@ -47,3 +47,18 @@ attributes:
 type: error
 attributes:
   message: ""
+---
+type: server_status
+attributes:
+  hardware_is_connected: true
+relationships:
+  hardware_state:
+    data: hardware_state
+  hardware_client:
+    data: hardware_client
+  ui_clients:
+    data: ui_client[]
+  ui_client:
+    data: ui_client
+  talkback_messages:
+    data: talkback_message[]

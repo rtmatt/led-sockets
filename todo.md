@@ -1,4 +1,5 @@
 # TODO
+- [ ] update types.yaml to reflect actual current types
 - [ ] reconnect/timeout status
     - [ ] "server-side heartbeats (pings/pongs) to detect dead connections, implementing a smart client-side
       reconnect/rejoin logic with local data storage for missed messages, and potentially leveraging push notifications
