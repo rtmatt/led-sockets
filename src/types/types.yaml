@@ -1,52 +1,16 @@
 ---
+type: hardware_client
+attributes: {}
+---
 type: hardware_state
 attributes:
   on: false
   message: ""
 ---
-type: hardware_connection
+type: hardware_state (partial)
 attributes:
-  is_connected: true
-relationships:
-  hardware_state:
-    data:
-      type: hardware_state
-      attributes:
-        on: true
-        message: ""
----
-type: init_hardware
-relationships:
-  hardware_state:
-    data:
-      type: hardware_state
-      attributes:
-        on: true
-        message: ""
----
-type: init_client
----
-type: client_init
-attributes:
-  hardware_is_connected: true
-relationships:
-  hardware_state:
-    data:
-      type: hardware_state
-      attributes:
-        on: true
-        message: ""
----
-type: patch_hardware_state
-attributes: Partial<hardware_state.attributes>
----
-type: talkback_message
-attributes:
-  message: ""
----
-type: error
-attributes:
-  message: ""
+  on?: false
+  message?: ""
 ---
 type: server_status
 attributes:
@@ -58,7 +22,68 @@ relationships:
     data: hardware_client
   ui_clients:
     data: ui_client[]
-  ui_client:
+  ui_client?:
     data: ui_client
-  talkback_messages:
+  talkback_messages?:
     data: talkback_message[]
+---
+type: talkback_message
+attributes:
+  message: ""
+---
+type: ui_client
+attributes:
+  name: ""
+---
+# Error
+detail: ""
+---
+# Errors
+errors: Error[]
+---
+# MESSAGE FORMATS
+---
+[
+  'patch_hardware_state',
+  partial_hardware_state
+]
+---
+[
+  'client_init',
+  server_status
+]
+---
+[
+  'client_joined',
+  server_status
+]
+---
+[
+  'hardware_connected',
+  server_status
+]
+---
+[
+  'hardware_disconnected',
+  server_status
+]
+---
+[
+  'hardware_updated',
+  hardware_state
+]
+---
+[
+  'talkback_message',
+  talkback_message
+]
+---
+[
+  'init_hardware',
+  hardware_state
+]
+---
+[
+  'error',
+  Errors
+]
