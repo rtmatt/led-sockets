@@ -97,10 +97,11 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             else:
                 raise HardwareMessageException(exception_message)
 
-    async def _on_client_patch_hardware(self, message: Message):
+    async def _on_client_patch_hardware(self, message: Message, client: UiClient):
         self._log('Processing patch hardware state message', 'info')
         try:
             model = PartialHardwareState.from_message(message)
+            model.source = client
         except DTOInvalidAttributesException as e:
             raise ClientMessageException(str(e)) from e
 
@@ -111,7 +112,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             }
         ]))
 
-    async def _handle_client_message(self, raw_message: str):
+    async def _handle_client_message(self, raw_message: str, client: UiClient):
         self._log(f'Client message: {raw_message}', 'debug')
 
         try:
@@ -121,7 +122,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
         match message.type:
             case 'patch_hardware_state':
-                await self._on_client_patch_hardware(message)
+                await self._on_client_patch_hardware(message, client)
             case 'talkback_message':
                 await self._on_talkback_message(message, 'Client')
             case _:
@@ -131,7 +132,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         connection = client.connection
         async for message in connection:
             try:
-                await self._handle_client_message(message)
+                await self._handle_client_message(message, client)
             except ClientMessageException as e:
                 self._log_exception(f"Ignoring invalid message: {e}")
                 await self._send_error_message(f"Message had no effect ({e})", connection)
