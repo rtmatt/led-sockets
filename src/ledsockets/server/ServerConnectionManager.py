@@ -76,10 +76,16 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         client_id = client.id
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
-        payload = UiMessage(f"Client {client.id} disconnected").toDict()
+
+        obj = self._get_status()
+        obj.set_relationship('ui_client', client)
+        obj.set_relationship('ui_message', UiMessage(f"{client.name} left"))
+
         await self._broadcast_to_clients(json.dumps([
-            'ui_message',
-            {"data": payload}
+            'client_disconnect',
+            {
+                "data": obj.toDict()
+            }
         ]), exclude_ids=[client.id])
 
     async def _on_talkback_message(self, message: Message, source: str):
@@ -141,7 +147,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         result_obj = self._get_status()
         result_obj.set_relationship('ui_client', client)
         result_obj.append_relationship('talkback_messages', TalkbackMessage("Hello, client!"))
-        result_obj.set_relationship('ui_message', UiMessage(f'You are connected!'))
+        result_obj.set_relationship('ui_message', UiMessage(f'You joined'))
         await client.connection.send(json.dumps([
             'client_init',
             {
@@ -149,7 +155,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             }
         ]))
         result_obj.remove_relationship('talkback_messages')
-        result_obj.set_relationship('ui_message', UiMessage(f'Client {client.id} joined'))
+        result_obj.set_relationship('ui_message', UiMessage(f'Client {client.name} joined'))
         await self._broadcast_to_clients(json.dumps([
             'client_joined',
             {
