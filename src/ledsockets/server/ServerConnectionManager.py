@@ -17,6 +17,7 @@ from ledsockets.dto.UiClient import UiClient
 from ledsockets.log.LogsConcern import Logs
 
 
+# <editor-fold desc="Exceptions">
 class InvalidHardwareInitPayloadException(Exception):
     """Exception raised when hardware init payload is invalid"""
     pass
@@ -41,6 +42,8 @@ class ClientMessageException(Exception):
     """Exception raised when client message is invalid"""
     pass
 
+
+# </editor-fold>
 
 class AbstractServerConnectionManager(ABC):
     @abstractmethod
