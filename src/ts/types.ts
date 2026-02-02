@@ -16,7 +16,7 @@ export type HardwareStateAttributes = {
 
 export interface PatchHardwareState extends SocketMessage {
   attributes: Partial<HardwareStateAttributes>;
-  type: 'hardware_state';
+  type: 'hardware_state_partial';
 }
 
 export type HardwareState = SocketMessage & {
