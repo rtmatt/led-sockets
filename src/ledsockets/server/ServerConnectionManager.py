@@ -10,6 +10,7 @@ from ledsockets.dto.AbstractDto import DTOInvalidAttributesException, DTOInvalid
 from ledsockets.dto.HardwareClient import HardwareClient
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.PartialHardwareState import PartialHardwareState
+from ledsockets.dto.ServerStatus import ServerStatus
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.dto.UiClient import UiClient
 from ledsockets.log.LogsConcern import Logs
@@ -126,22 +127,20 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._send_error_message(f"Message had no effect ({e})", connection)
 
     async def _init_client_connection(self, client: UiClient):
-        result_data = self._get_status()
-        result_data['relationships']['ui_client'] = client.toDict()
-        result_data['relationships']['talkback_messages'] = {
-            "data": [TalkbackMessage("Hello, client!").toDict()]
-        }
+        result_obj = self._get_status()
+        result_obj.set_relationship('ui_client', client)
+        result_obj.append_relationship('talkback_messages', TalkbackMessage("Hello, client!"))
         await client.connection.send(json.dumps([
             'client_init',
             {
-                "data": result_data
+                "data": result_obj.toDict()
             }
         ]))
-        del result_data['relationships']["talkback_messages"]
+        result_obj.remove_relationship('talkback_messages')
         await self._broadcast_to_clients(json.dumps([
             'client_joined',
             {
-                "data": result_data
+                "data": result_obj.toDict()
             }
         ]), exclude_ids=[client.id])
 
@@ -197,24 +196,16 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             await self._hardware_connection.connection.send(message)
 
     def _get_status(self):
-        return {
-            "type": "server_status",
-            "id": "",
-            "attributes": {
-                "hardware_is_connected": self.is_hardware_connected
-            },
-            "relationships": {
-                "hardware_state": {
-                    "data": self._hardware_state.toDict()
-                },
-                "ui_clients": {
-                    "data": [self._client_connections[cId].toDict() for cId in list(self._client_connections.keys())]
-                },
-                "hardware_client": {
-                    "data": self._hardware_connection.toDict() if self._hardware_connection else None
-                }
-            }
-        }
+        obj = ServerStatus(self.is_hardware_connected)
+        obj.set_relationship('hardware_state', self._hardware_state)
+
+        if self._hardware_connection:
+            obj.set_relationship('hardware_client', self._hardware_connection)
+
+        [obj.append_relationship('ui_clients', self._client_connections[cId]) for cId in
+         list(self._client_connections.keys())]
+
+        return obj
 
     async def _handle_hardware_disconnect(self):
         self._log(f'Hardware disconnected', 'info')
@@ -224,7 +215,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         await self._broadcast_to_clients(json.dumps([
             'hardware_disconnected',
             {
-                "data": self._get_status()
+                "data": self._get_status().toDict()
             }
         ]))
 
@@ -282,7 +273,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         await self._broadcast_to_clients(json.dumps([
             'hardware_connected',
             {
-                "data": self._get_status()
+                "data": self._get_status().toDict()
             }
         ]))
 
