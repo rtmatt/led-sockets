@@ -110,6 +110,25 @@ class TestPartialHardwareState(unittest.TestCase):
         self.assertEqual(dict['relationships']['source']['data']['id'], 'client_1')
         self.assertEqual(dict['relationships']['source']['data']['attributes']['name'], 'Client A')
 
+    def test_stores_source_relation_as_member(self):
+        """Test from_message() creates "source" relations out of UI client data."""
+        payload = {
+            "data": {
+                "type": "hardware_state_partial",
+                "attributes": {"on": True, "message": "Test"},
+                "id": "5678",
+                "relationships": {
+                    "source": {
+                        "data": {"type": "ui_client", "attributes": {"name": "Client A"}, "id": "client_1"}
+                    }
+                },
+            }
+        }
+        message = Message(type="patch_hardware_state", payload=payload)
+        state = PartialHardwareState.from_message(message)
+        dict = state.toDict()
+        self.assertIsInstance(state.source, UiClient)
+
 
 if __name__ == "__main__":
     unittest.main()
