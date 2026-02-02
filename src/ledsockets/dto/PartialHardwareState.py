@@ -20,18 +20,5 @@ class PartialHardwareState(HardwareState):
         return result
 
     @classmethod
-    def from_dict(self, json_data: Dict):
-        instance = super().from_dict(json_data)
-        relationships = json_data.get('relationships')
-        if (relationships):
-            source_relation_data = relationships.get('source').get('data')
-            if (source_relation_data):
-                if (source_relation_data.get('type') == 'ui_client'):
-                    client = UiClient.from_dict(source_relation_data)
-                    instance.set_relationship('source', client)
-
-        return instance
-
-    @classmethod
     def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
         return PartialHardwareState(on=attributes.get('on'), message=attributes.get('message'), id=id)
