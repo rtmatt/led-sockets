@@ -4,6 +4,7 @@ import unittest
 
 from ledsockets.dto.AbstractDto import DTOInvalidPayloadException
 from ledsockets.dto.PartialHardwareState import PartialHardwareState
+from ledsockets.dto.UiClient import UiClient
 from ledsockets.support.Message import Message
 
 
@@ -46,7 +47,7 @@ class TestPartialHardwareState(unittest.TestCase):
         """Test from_message() parses a valid Message object correctly."""
         payload = {
             "data": {
-                "type": "hardware_state",
+                "type": "hardware_state_partial",
                 "attributes": {"on": True, "message": "Test"},
                 "id": "5678",
                 "relationships": {
@@ -92,7 +93,7 @@ class TestPartialHardwareState(unittest.TestCase):
         """Test from_message() creates "source" relations out of UI client data."""
         payload = {
             "data": {
-                "type": "hardware_state",
+                "type": "hardware_state_partial",
                 "attributes": {"on": True, "message": "Test"},
                 "id": "5678",
                 "relationships": {
