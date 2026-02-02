@@ -102,6 +102,47 @@ export function isServerStatus(obj: Record<string, any>): obj is ServerStatus {
   return true;
 }
 
+export type UiMessageAttributes = {
+  message: string;
+}
+
+export interface UIMessage extends SocketMessage {
+  attributes: UiMessageAttributes
+  type: 'ui_message',
+}
+
+export function isUiMessage(message: SocketMessage): message is UIMessage {
+  if (message.type !== 'ui_message') {
+    return false;
+  }
+  const {
+    attributes,
+  } = message;
+  if (!attributes) {
+    return true;
+  }
+  if (!('message' in attributes && typeof attributes.message == 'string')) {
+    return false;
+  }
+  return true;
+}
+
+export function getUiMessageRelation(message: SocketMessage): UIMessage | null {
+  const {
+    relationships,
+  } = message;
+  if (!relationships) {
+    return null;
+  }
+  if (!relationships.ui_message) {
+    return null;
+  }
+  if (isUiMessage(relationships.ui_message.data)) {
+    return relationships.ui_message.data;
+  }
+  return null;
+}
+
 type EventMessage<E extends string, T extends SocketMessage> = [E, { data: T }]
 
 export function isEventMessage(event: unknown): event is EventMessage<any, any> {
