@@ -106,8 +106,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._handle_client_message(message)
             except ClientMessageException as e:
                 self._log_exception(f"Ignoring invalid message: {e}")
-                error = ErrorMessage(f"Message had no effect ({e})")
-                await connection.send(error.toJSON())
+                await self._send_error_message(f"Message had no effect ({e})", connection)
 
     async def _init_client_connection(self, client: UiClient):
         payload = ClientConnectionInitMessage(self._hardware_connection is not None, "Hello, client!",
@@ -206,8 +205,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._handle_hardware_message(message)
             except HardwareMessageException as e:
                 self._log(f"Ignoring invalid Hardware message: {e}", 'warning')
-                error = ErrorMessage(f"Message had no effect ({e})")
-                await connection.send(error.toJSON())
+                await self._send_error_message(f"Message had no effect ({e})", connection)
 
     async def _init_hardware_connection(self, hardware: HardwareClient):
         connection = hardware.connection
@@ -276,14 +274,21 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         except InitPayloadInvalidException as e:
             message = str(e)
             self._log_exception(message)
-            error = ErrorMessage(message)
-            await websocket.send(error.toJSON())
+            await self._send_error_message(message, websocket)
         except InvalidHardwareInitPayloadException as e:
             message = f'Hardware Init Error: {e}'
             self._log_exception('Hardware Init Error')
-            error = ErrorMessage(message)
-            await websocket.send(error.toJSON())
+            await self._send_error_message(message, websocket)
         except HardwareAlreadyConnectedException as e:
             self._log('Hardware already connected; aborting connection', 'warning')
-            error = ErrorMessage("Hardware already connected.  Buh bye now.")
-            await websocket.send(error.toJSON())
+            await self._send_error_message('Hardware already connected.  Buh bye now.', websocket)
+
+    async def _send_error_message(self, message: str, connection: ServerConnection):
+        await connection.send(json.dumps([
+            'error',
+            {
+                "errors": [{
+                    "detail": message
+                }]
+            }
+        ]))
