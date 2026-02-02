@@ -13,6 +13,7 @@ from ledsockets.dto.PartialHardwareState import PartialHardwareState
 from ledsockets.dto.ServerStatus import ServerStatus
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.dto.UiClient import UiClient
+from ledsockets.dto.UiMessage import UiMessage
 from ledsockets.log.LogsConcern import Logs
 from ledsockets.support.Message import Message, MessageException
 
@@ -76,6 +77,17 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
 
+        obj = self._get_status()
+        obj.set_relationship('ui_client', client)
+        obj.set_relationship('ui_message', UiMessage(f"{client.name} left"))
+
+        await self._broadcast_to_clients(json.dumps([
+            'client_disconnect',
+            {
+                "data": obj.toDict()
+            }
+        ]), exclude_ids=[client.id])
+
     async def _on_talkback_message(self, message: Message, source: str):
         try:
             talkback = TalkbackMessage.from_message(message)
@@ -130,6 +142,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         result_obj = self._get_status()
         result_obj.set_relationship('ui_client', client)
         result_obj.append_relationship('talkback_messages', TalkbackMessage("Hello, client!"))
+        result_obj.set_relationship('ui_message', UiMessage(f'You joined'))
         await client.connection.send(json.dumps([
             'client_init',
             {
@@ -137,6 +150,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             }
         ]))
         result_obj.remove_relationship('talkback_messages')
+        result_obj.set_relationship('ui_message', UiMessage(f'Client {client.name} joined'))
         await self._broadcast_to_clients(json.dumps([
             'client_joined',
             {
@@ -212,10 +226,12 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         self._hardware_connection = None
         self._hardware_state = HardwareState()
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)', 'info')
+        payload = self._get_status()
+        payload.set_relationship('ui_message', UiMessage("Hardware disconnected"))
         await self._broadcast_to_clients(json.dumps([
             'hardware_disconnected',
             {
-                "data": self._get_status().toDict()
+                "data": payload.toDict()
             }
         ]))
 
@@ -269,10 +285,12 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 "data": TalkbackMessage("Hello, hardware").toDict()
             }
         ])))
+        payload = self._get_status()
+        payload.set_relationship('ui_message', UiMessage("Hardware connected"))
         await self._broadcast_to_clients(json.dumps([
             'hardware_connected',
             {
-                "data": self._get_status().toDict()
+                "data": payload.toDict()
             }
         ]))
 
