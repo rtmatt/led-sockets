@@ -113,6 +113,9 @@ function openConnection() {
     log('CLOSE');
     connected.value = false;
     socketStatus.value = 'Closed';
+    addMessage({
+      message: 'Disconnected from server',
+    });
     controller.abort();// shouldn't be necessary, but oh well
   }, { signal: controller.signal });
 
@@ -149,6 +152,10 @@ function openConnection() {
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
           if (payload.relationships.ui_client) {
             client.value = payload.relationships.ui_client.data;
+            const { name } = payload.relationships.ui_client.data.attributes;
+            addMessage({
+              message: `You joined.  Your name is ${name}.`,
+            });
           }
         }
         break;
@@ -156,12 +163,18 @@ function openConnection() {
         if (isServerStatus(payload)) {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          addMessage({
+            message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
+          });
         }
         break;
       case 'hardware_connected':
         if (isServerStatus(payload)) {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          addMessage({
+            message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
+          });
         }
         break;
       case 'hardware_updated':
@@ -171,12 +184,28 @@ function openConnection() {
         break;
       case 'client_joined':
         if (isServerStatus(payload)) {
-          log(`Client join received and unprocessed`);
+          log(`Client join server status received and unprocessed`);
+          if (payload.relationships && payload.relationships.ui_client) {
+            const { name } = payload.relationships.ui_client.data.attributes;
+            addMessage({
+              message: `${name} joined.`,
+            });
+          }
         }
         break;
       case 'talkback_message':
         if (isTalkbackMessage(payload)) {
           log(`Talkback received: ${payload.attributes.message}`);
+        }
+        break;
+      case 'client_disconnect':
+        if (payload.relationships && payload.relationships.ui_client) {
+          if (isUiClient(payload.relationships.ui_client.data)) {
+            const { name } = payload.relationships.ui_client.data.attributes;
+            addMessage({
+              message: `${name} left`,
+            });
+          }
         }
         break;
       default:
