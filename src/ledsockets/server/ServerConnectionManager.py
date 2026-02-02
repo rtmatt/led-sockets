@@ -226,10 +226,12 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         self._hardware_connection = None
         self._hardware_state = HardwareState()
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)', 'info')
+        payload = self._get_status()
+        payload.set_relationship('ui_message', UiMessage("Hardware disconnected"))
         await self._broadcast_to_clients(json.dumps([
             'hardware_disconnected',
             {
-                "data": self._get_status().toDict()
+                "data": payload.toDict()
             }
         ]))
 
@@ -284,10 +286,12 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 "data": TalkbackMessage("Hello, hardware").toDict()
             }
         ])))
+        payload = self._get_status()
+        payload.set_relationship('ui_message', UiMessage("Hardware connected"))
         await self._broadcast_to_clients(json.dumps([
             'hardware_connected',
             {
-                "data": self._get_status().toDict()
+                "data": payload.toDict()
             }
         ]))
 
