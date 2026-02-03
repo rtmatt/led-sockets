@@ -3,16 +3,14 @@ import { computed, nextTick, onMounted, type Ref, ref, useTemplateRef } from 'vu
 import {
   type ChangeDetail,
   type ErrorMessage,
-  getUiMessageRelation,
   type HardwareStateAttributes,
   type InitClientMessage,
-  isChangeDetail,
   isErrorMessage,
   isEventMessage,
   isHardwareState,
   isServerStatus,
   isTalkbackMessage,
-  isUiMessage,
+  isUiClient,
   type PatchHardwareStateMessage,
   type ServerError,
   type SocketMessage,
@@ -168,6 +166,10 @@ function openConnection() {
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
           if (payload.relationships.ui_client) {
             client.value = payload.relationships.ui_client.data;
+            const { name } = payload.relationships.ui_client.data.attributes;
+            addMessage({
+              message: `You joined.  Your name is ${name}.`,
+            });
           }
         }
         break;
@@ -175,27 +177,37 @@ function openConnection() {
         if (isServerStatus(payload)) {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          addMessage({
+            message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
+          });
         }
         break;
       case 'hardware_connected':
         if (isServerStatus(payload)) {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          addMessage({
+            message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
+          });
         }
         break;
       case 'hardware_updated':
         if (isHardwareState(payload)) {
           updateState(payload.attributes);
-        }
-        if (payload.relationships && payload.relationships.change_detail) {
-          if (isChangeDetail(payload.relationships.change_detail.data)) {
+          if (payload.relationships && payload.relationships.change_detail) {
             onChangeDetail(payload.relationships.change_detail.data);
           }
         }
         break;
       case 'client_joined':
         if (isServerStatus(payload)) {
-          log(`Client join received and unprocessed`);
+          log(`Client join server status received and unprocessed`);
+          if (payload.relationships && payload.relationships.ui_client) {
+            const { name } = payload.relationships.ui_client.data.attributes;
+            addMessage({
+              message: `${name} joined.`,
+            });
+          }
         }
         break;
       case 'talkback_message':
@@ -203,19 +215,19 @@ function openConnection() {
           log(`Talkback received: ${payload.attributes.message}`);
         }
         break;
-      case 'ui_message':
-        if (isUiMessage(payload)) {
-          addMessage(payload.attributes);
+      case 'client_disconnect':
+        if (payload.relationships && payload.relationships.ui_client) {
+          if (isUiClient(payload.relationships.ui_client.data)) {
+            const { name } = payload.relationships.ui_client.data.attributes;
+            addMessage({
+              message: `${name} left`,
+            });
+          }
         }
         break;
       default:
         console.warn('Unprocessed message received: ' + event_type);
         break;
-    }
-
-    const uiMessageRelation = getUiMessageRelation(payload);
-    if (uiMessageRelation) {
-      addMessage(uiMessageRelation.attributes);
     }
 
   }, { signal: controller.signal });

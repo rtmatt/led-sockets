@@ -23,7 +23,9 @@ export type HardwareState = SocketMessage & {
   attributes: HardwareStateAttributes
   type: 'hardware_state',
   relationships?: {
-    change_detail?: ChangeDetail
+    change_detail?: {
+      data: ChangeDetail
+    }
   }
 }
 
@@ -31,6 +33,7 @@ export function isHardwareState(obj: Record<string, any>): obj is HardwareState 
   const {
     type,
     attributes,
+    relationships,
   } = obj;
   if (type !== 'hardware_state') {
     return false;
@@ -38,7 +41,19 @@ export function isHardwareState(obj: Record<string, any>): obj is HardwareState 
   if (!attributes || typeof attributes !== 'object') {
     throw TypeError('"hardware_state" missing "attributes"');
   }
-  return 'on' in attributes && typeof attributes.on == 'boolean' && 'status_description' in attributes && typeof attributes.status_description == 'string';
+  if (!('on' in attributes && typeof attributes.on == 'boolean' && 'status_description' in attributes && typeof attributes.status_description == 'string')) {
+    throw TypeError('"hardware_state" invalid "attributes"');
+  }
+  if (relationships) {
+    const {
+      change_detail,
+    } = relationships;
+    if (change_detail && !isChangeDetail(change_detail.data)) {
+      throw TypeError('"hardware_state" invalid "change_detail" relationship');
+    }
+  }
+
+  return true;
 }
 
 type TalkbackMessage = SocketMessage & {
@@ -137,43 +152,6 @@ export function isServerStatus(obj: Record<string, any>): obj is ServerStatus {
 
 export type UiMessageAttributes = {
   message: string;
-}
-
-export interface UIMessage extends SocketMessage {
-  attributes: UiMessageAttributes
-  type: 'ui_message',
-}
-
-export function isUiMessage(message: SocketMessage): message is UIMessage {
-  if (message.type !== 'ui_message') {
-    return false;
-  }
-  const {
-    attributes,
-  } = message;
-  if (!attributes) {
-    return true;
-  }
-  if (!('message' in attributes && typeof attributes.message == 'string')) {
-    return false;
-  }
-  return true;
-}
-
-export function getUiMessageRelation(message: SocketMessage): UIMessage | null {
-  const {
-    relationships,
-  } = message;
-  if (!relationships) {
-    return null;
-  }
-  if (!relationships.ui_message) {
-    return null;
-  }
-  if (isUiMessage(relationships.ui_message.data)) {
-    return relationships.ui_message.data;
-  }
-  return null;
 }
 
 export type ChangeDetail = SocketMessage & {

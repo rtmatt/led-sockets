@@ -13,7 +13,6 @@ from ledsockets.dto.PartialHardwareState import PartialHardwareState
 from ledsockets.dto.ServerStatus import ServerStatus
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.dto.UiClient import UiClient
-from ledsockets.dto.UiMessage import UiMessage
 from ledsockets.log.LogsConcern import Logs
 from ledsockets.support.Message import Message, MessageException
 
@@ -77,14 +76,13 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
 
-        obj = self._get_status()
-        obj.set_relationship('ui_client', client)
-        obj.set_relationship('ui_message', UiMessage(f"{client.name} left"))
+        payload = self._get_status()
+        payload.ui_client = client
 
         await self._broadcast_to_clients(json.dumps([
             'client_disconnect',
             {
-                "data": obj.toDict()
+                "data": payload.toDict()
             }
         ]), exclude_ids=[client.id])
 
@@ -140,22 +138,20 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._send_error_message(f"Message had no effect ({e})", connection)
 
     async def _init_client_connection(self, client: UiClient):
-        result_obj = self._get_status()
-        result_obj.set_relationship('ui_client', client)
-        result_obj.append_relationship('talkback_messages', TalkbackMessage("Hello, client!"))
-        result_obj.set_relationship('ui_message', UiMessage(f'You joined'))
+        payload = self._get_status()
+        payload.ui_client = client
+        payload.append_relationship('talkback_messages', TalkbackMessage("Hello, client!"))
         await client.connection.send(json.dumps([
             'client_init',
             {
-                "data": result_obj.toDict()
+                "data": payload.toDict()
             }
         ]))
-        result_obj.remove_relationship('talkback_messages')
-        result_obj.set_relationship('ui_message', UiMessage(f'Client {client.name} joined'))
+        payload.remove_relationship('talkback_messages')
         await self._broadcast_to_clients(json.dumps([
             'client_joined',
             {
-                "data": result_obj.toDict()
+                "data": payload.toDict()
             }
         ]), exclude_ids=[client.id])
 
@@ -229,7 +225,6 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         self._hardware_state = HardwareState()
         self._log(f'Sending hardware disconnect signal to {len(self._client_connections)} client(s)', 'info')
         payload = self._get_status()
-        payload.set_relationship('ui_message', UiMessage("Hardware disconnected"))
         await self._broadcast_to_clients(json.dumps([
             'hardware_disconnected',
             {
@@ -288,7 +283,6 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             }
         ])))
         payload = self._get_status()
-        payload.set_relationship('ui_message', UiMessage("Hardware connected"))
         await self._broadcast_to_clients(json.dumps([
             'hardware_connected',
             {
@@ -299,8 +293,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     def _record_hardware_connection(self, websocket: ServerConnection, message: Message):
         self._log(f'Initializing hardware from {websocket.remote_address}', 'info')
         try:
-            attributes = message.payload['data']['attributes']
-            hardware_state = HardwareState.from_attributes(attributes)
+            hardware_state = HardwareState.from_message(message)
         except KeyError as e:
             raise InvalidHardwareInitPayloadException(f'Invalid attributes payload: "{e}"') from e
         except DTOInvalidAttributesException as e:
