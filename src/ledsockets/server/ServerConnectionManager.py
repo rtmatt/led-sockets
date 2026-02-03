@@ -155,7 +155,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             }
         ]), exclude_ids=[client.id])
 
-    def _record_client_connection(self, websocket: ServerConnection):
+    def _record_client_connection(self, websocket: ServerConnection, message: Message):
+        # @todo: based on message info (preferred client name + availability), init client info with potentially non-new data
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
         client = UiClient(str(websocket.id), websocket)
         self._client_connections[client.id] = client
@@ -317,7 +318,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             await self._handle_hardware_disconnect()
 
     async def _handle_client_connection(self, websocket: ServerConnection, message: Message):
-        client = self._record_client_connection(websocket)
+        client = self._record_client_connection(websocket, message)
         try:
             await self._init_client_connection(client)
             await self._run_client_connection(client)
