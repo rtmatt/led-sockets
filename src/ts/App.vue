@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, type Ref, ref, useTemplateRef } from 'vue';
 import {
+  type ChangeDetail,
   type ErrorMessage,
   getUiMessageRelation,
   type HardwareStateAttributes,
@@ -15,6 +16,7 @@ import {
   type PatchHardwareStateMessage,
   type ServerError,
   type SocketMessage,
+  type UiClient,
   type UiMessageAttributes,
 } from './types';
 
@@ -32,6 +34,7 @@ let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
 const uiMessages: Ref<UiMessageAttributes[]> = ref([]);
 const messageContainer = useTemplateRef('scrollParent');
+const client: Ref<UiClient | null> = ref(null);
 
 let abortController: AbortController | undefined;
 let ws: WebSocket | null = null;
@@ -147,6 +150,9 @@ function openConnection() {
         if (isServerStatus(payload)) {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          if (payload.relationships.ui_client) {
+            client.value = payload.relationships.ui_client.data;
+          }
         }
         break;
       case 'hardware_disconnected':
