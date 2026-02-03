@@ -27,6 +27,7 @@ const {
 let message: Ref<string> = ref('');
 let socketStatus: Ref<string> = ref('Closed');
 let connected: Ref<boolean> = ref(false);
+let has_connected: Ref<boolean> = ref(false);
 let connecting: Ref<boolean> = ref(false);
 let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
@@ -96,14 +97,17 @@ function onChangeDetail(data: ChangeDetail) {
 
 function openConnection() {
   log('OPENING CONNECTION');
+  socketStatus.value = has_connected.value ? 'Reconnecting' : 'Connecting';
   const socket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);
   const controller = new AbortController();
 
   socket.addEventListener('open', () => {
     log('OPEN');
+    has_connected.value = true;
     connecting.value = false;
     connected.value = true;
-    socketStatus.value = 'Open';
+    socketStatus.value = 'Connected';
+    // @todo: pass existing data (local storage or current session client) to backend for preferred info
     const payload: InitClientMessage = [
       'init_client',
       {
@@ -125,11 +129,19 @@ function openConnection() {
 
   socket.addEventListener('close', () => {
     log('CLOSE');
+    if (connected.value) {
+      addMessage({
+        message: 'Disconnected from server',
+      });
+    } else {
+      addMessage({
+        message: has_connected.value ? 'Unable to reconnect' : 'Unable to connect',
+      });
+    }
+    connecting.value = false;
     connected.value = false;
-    socketStatus.value = 'Closed';
-    addMessage({
-      message: 'Disconnected from server',
-    });
+    socketStatus.value = 'Not Connected';
+
     controller.abort();// shouldn't be necessary, but oh well
   }, { signal: controller.signal });
 
@@ -366,11 +378,13 @@ ul {
         <dd>
           <span>{{ socketStatus }}&nbsp;</span>
           <small>
-            <a href="#" v-if="showReconnect" @click="reconnect">reconnect</a>
+            <a v-if="showReconnect" href="#" @click="reconnect">{{ has_connected ? 'reconnect' : 'connect' }}</a>
           </small>
         </dd>
         <dt>Hardware Status:</dt>
         <dd>{{ hardwareStatus }}</dd>
+        <dt>Client:</dt>
+        <dd>{{ client }}</dd>
       </dl>
     </div>
     <div ref="scrollParent" class="messages-container">
