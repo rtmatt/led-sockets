@@ -28,6 +28,7 @@ let message: Ref<string> = ref('');
 let socketStatus: Ref<string> = ref('Closed');
 let connected: Ref<boolean> = ref(false);
 let has_connected: Ref<boolean> = ref(false);
+let has_reconnected: Ref<boolean> = ref(false);
 let connecting: Ref<boolean> = ref(false);
 let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
@@ -103,6 +104,7 @@ function openConnection() {
 
   socket.addEventListener('open', () => {
     log('OPEN');
+    has_reconnected.value = !!has_connected.value;
     has_connected.value = true;
     connecting.value = false;
     connected.value = true;
@@ -177,11 +179,19 @@ function openConnection() {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
           if (payload.relationships.ui_client) {
-            client.value = payload.relationships.ui_client.data;
+
             localStorage.setItem('ledsockets.connection', JSON.stringify(payload.relationships.ui_client.data));
             const { name } = payload.relationships.ui_client.data.attributes;
+            let message = 'You joined.';
+            if (has_reconnected.value) {
+              message = 'You reconnected.';
+            }
+            if (!client.value || name !== client.value.attributes.name) {
+              message += ` Your name is ${name}.`;
+            }
+            client.value = payload.relationships.ui_client.data;
             addMessage({
-              message: `You joined.  Your name is ${name}.`,
+              message,
             });
           }
         }
@@ -384,7 +394,10 @@ ul {
         <dt>Hardware Status:</dt>
         <dd>{{ hardwareStatus }}</dd>
         <dt>Client:</dt>
-        <dd>{{ client }}</dd>
+        <dd>
+          <span v-if="client">You're connected as "{{ client.attributes.name }}" <button :disabled="!connected">Change Name</button></span>
+          <span v-else>You're not connected</span>
+        </dd>
       </dl>
     </div>
     <div ref="scrollParent" class="messages-container">
