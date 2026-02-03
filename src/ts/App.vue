@@ -82,6 +82,18 @@ function updateState(attributes: HardwareStateAttributes | null) {
   status.value = payload.on;
 }
 
+function onChangeDetail(data: ChangeDetail) {
+  const { attributes } = data;
+  const client_ = client.value;
+  let message = attributes.description;
+  if (client_ && attributes.source_type == client_.type && attributes.source_id == client_.id) {
+    message = `You ${attributes.action_description}`;
+  }
+  addMessage({
+    message,
+  });
+}
+
 function openConnection() {
   log('OPENING CONNECTION');
   const socket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);

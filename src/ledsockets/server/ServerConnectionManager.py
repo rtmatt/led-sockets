@@ -76,13 +76,13 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
 
-        obj = self._get_status()
-        obj.set_relationship('ui_client', client)
+        payload = self._get_status()
+        payload.ui_client = client
 
         await self._broadcast_to_clients(json.dumps([
             'client_disconnect',
             {
-                "data": obj.toDict()
+                "data": payload.toDict()
             }
         ]), exclude_ids=[client.id])
 
@@ -138,20 +138,20 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._send_error_message(f"Message had no effect ({e})", connection)
 
     async def _init_client_connection(self, client: UiClient):
-        result_obj = self._get_status()
-        result_obj.set_relationship('ui_client', client)
-        result_obj.append_relationship('talkback_messages', TalkbackMessage("Hello, client!"))
+        payload = self._get_status()
+        payload.ui_client = client
+        payload.append_relationship('talkback_messages', TalkbackMessage("Hello, client!"))
         await client.connection.send(json.dumps([
             'client_init',
             {
-                "data": result_obj.toDict()
+                "data": payload.toDict()
             }
         ]))
-        result_obj.remove_relationship('talkback_messages')
+        payload.remove_relationship('talkback_messages')
         await self._broadcast_to_clients(json.dumps([
             'client_joined',
             {
-                "data": result_obj.toDict()
+                "data": payload.toDict()
             }
         ]), exclude_ids=[client.id])
 
