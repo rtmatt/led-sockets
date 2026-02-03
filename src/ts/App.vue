@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, type Ref, ref, useTemplateRef } from 'vue';
 import {
+  type ChangeDetail,
   type ErrorMessage,
   type HardwareStateAttributes,
   type InitClientMessage,
+  isChangeDetail,
   isErrorMessage,
   isEventMessage,
   isHardwareState,
@@ -180,6 +182,14 @@ function openConnection() {
       case 'hardware_updated':
         if (isHardwareState(payload)) {
           updateState(payload.attributes);
+        }
+        if (payload.relationships && payload.relationships.change_detail) {
+          if (isChangeDetail(payload.relationships.change_detail.data)) {
+            // @todo: store who I am, replace message if the change detail was from me
+            addMessage({
+              message: payload.relationships.change_detail.data.attributes.description,
+            });
+          }
         }
         break;
       case 'client_joined':
