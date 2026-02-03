@@ -1,16 +1,34 @@
 ---
+type: 'change_detail'
+attributes:
+  description: string
+  source_name: string
+  action_description: string
+  source_type: string
+  source_id: string
+---
 type: hardware_client
 attributes: {}
 ---
 type: hardware_state
 attributes:
   on: false
-  message: ""
+  status_description: ""
+relationships?:
+  source?:
+    data: ui_client
+  change_detail?:
+    data: change_detail
 ---
-type: hardware_state (partial)
+type: hardware_state_partial
 attributes:
   on?: false
-  message?: ""
+  status_description?: ""
+relationships?:
+  source?:
+    data: ui_client
+  change_detail?:
+    data: change_detail
 ---
 type: server_status
 attributes:

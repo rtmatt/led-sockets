@@ -1,25 +1,24 @@
 from typing import Dict
 
-from ledsockets.dto.AbstractDto import AbstractDto, DTOInvalidAttributesException
-from ledsockets.support.Message import Message
+from ledsockets.dto.HardwareState import HardwareState
 
 
-class PartialHardwareState(AbstractDto):
-    TYPE = 'hardware_state'
+class PartialHardwareState(HardwareState):
+    TYPE = 'hardware_state_partial'
 
-    def __init__(self, on=None, message=None, id=''):
-        super().__init__(id)
+    def __init__(self, on=None, status_description=None, id=''):
+        super().__init__(id=id)
         self.on = on
-        self.message = message
+        self.status_description = status_description
 
     def get_attributes(self):
         result = {}
         if (self.on is not None):
             result['on'] = self.on
-        if (self.message is not None):
-            result['message'] = self.message
+        if (self.status_description is not None):
+            result['status_description'] = self.status_description
         return result
 
     @classmethod
     def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
-        return PartialHardwareState(on=attributes.get('on'), message=attributes.get('message'), id=id)
+        return PartialHardwareState(attributes.get('on'), attributes.get('status_description'), id)

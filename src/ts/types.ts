@@ -11,23 +11,29 @@ export function isSocketMessage(message: unknown): message is SocketMessage {
 
 export type HardwareStateAttributes = {
   on: boolean;
-  message: string; // @todo: remove
+  status_description: string;
 }
 
 export interface PatchHardwareState extends SocketMessage {
   attributes: Partial<HardwareStateAttributes>;
-  type: 'hardware_state';
+  type: 'hardware_state_partial';
 }
 
 export type HardwareState = SocketMessage & {
   attributes: HardwareStateAttributes
   type: 'hardware_state',
+  relationships?: {
+    change_detail?: {
+      data: ChangeDetail
+    }
+  }
 }
 
 export function isHardwareState(obj: Record<string, any>): obj is HardwareState {
   const {
     type,
     attributes,
+    relationships,
   } = obj;
   if (type !== 'hardware_state') {
     return false;
@@ -35,7 +41,19 @@ export function isHardwareState(obj: Record<string, any>): obj is HardwareState 
   if (!attributes || typeof attributes !== 'object') {
     throw TypeError('"hardware_state" missing "attributes"');
   }
-  return 'on' in attributes && typeof attributes.on == 'boolean' && 'message' in attributes && typeof attributes.message == 'string';
+  if (!('on' in attributes && typeof attributes.on == 'boolean' && 'status_description' in attributes && typeof attributes.status_description == 'string')) {
+    throw TypeError('"hardware_state" invalid "attributes"');
+  }
+  if (relationships) {
+    const {
+      change_detail,
+    } = relationships;
+    if (change_detail && !isChangeDetail(change_detail.data)) {
+      throw TypeError('"hardware_state" invalid "change_detail" relationship');
+    }
+  }
+
+  return true;
 }
 
 type TalkbackMessage = SocketMessage & {
@@ -59,6 +77,30 @@ export function isTalkbackMessage(obj: Record<string, any>): obj is TalkbackMess
   return 'message' in attributes && typeof attributes.message == 'string';
 }
 
+export type UiClient = SocketMessage & {
+  type: 'ui_client'
+  attributes: {
+    name: string
+  }
+}
+
+export function isUiClient(obj: Record<string, any>): obj is UiClient {
+  const {
+    type,
+    attributes,
+  } = obj;
+  if (type !== 'ui_client') {
+    return false;
+  }
+  if (!attributes || typeof attributes !== 'object') {
+    throw TypeError('"ui_client" missing "attributes"');
+  }
+  if ('name' in attributes && typeof attributes.name == 'string') {
+    return true;
+  }
+  throw TypeError('"ui_client" invalid "attributes"');
+}
+
 type ServerStatus = SocketMessage & {
   type: 'server_status',
   attributes: {
@@ -68,6 +110,9 @@ type ServerStatus = SocketMessage & {
     hardware_state: {
       data: HardwareState
     },
+    ui_client?: {
+      data: UiClient
+    }
   }
 }
 
@@ -94,10 +139,57 @@ export function isServerStatus(obj: Record<string, any>): obj is ServerStatus {
     // @todo: add predicates for these if they ever end up in use
     // ui_clients,
     // hardware_client,
+    ui_client,
   } = relationships;
   if (!isHardwareState(hardware_state.data)) {
     throw TypeError('"server_status" missing "hardware_state" relationship');
   }
+  if (ui_client && !isUiClient(ui_client.data)) {
+    throw TypeError('"server_status" invalid "ui_client" relationship');
+  }
+  return true;
+}
+
+export type UiMessageAttributes = {
+  message: string;
+}
+
+export type ChangeDetail = SocketMessage & {
+  type: 'change_detail'
+  attributes: {
+    description: string
+    source_name: string
+    action_description: string
+    source_type: string
+    source_id: string
+  }
+}
+
+export function isChangeDetail(message: unknown): message is ChangeDetail {
+  if (!isSocketMessage(message)) {
+    console.log(message);
+    return false;
+  }
+  if (message.type !== 'change_detail') {
+    return false;
+  }
+  const {
+    attributes,
+  } = message;
+  if (!attributes) {
+    throw TypeError('Change detail attributes missing');
+  }
+  [
+    'description',
+    'source_name',
+    'action_description',
+    'source_type',
+    'source_id',
+  ].forEach((key) => {
+    if (!(key in attributes && typeof attributes[key] === 'string')) {
+      throw TypeError(`Invalid key ${key}`);
+    }
+  });
 
   return true;
 }
