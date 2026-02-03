@@ -5,12 +5,12 @@ attributes: {}
 type: hardware_state
 attributes:
   on: false
-  message: ""
+  status_description: ""
 ---
 type: hardware_state (partial)
 attributes:
   on?: false
-  message?: ""
+  status_description?: ""
 ---
 type: server_status
 attributes:
