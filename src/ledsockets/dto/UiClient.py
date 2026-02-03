@@ -9,10 +9,7 @@ class UiClient(AbstractDto):
     def __init__(self, id: str, connection):
         super().__init__(id)
         self.connection = connection
-
-    @property
-    def name(self):
-        return f"Client {self.id}"
+        self.name = f"Client {self.id}"
 
     def get_attributes(self):
         return {
