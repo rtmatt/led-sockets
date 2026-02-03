@@ -159,9 +159,15 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         ]), exclude_ids=[client.id])
 
     def _record_client_connection(self, websocket: ServerConnection, message: Message):
-        # @todo: based on message info (preferred client name + availability), init client info with potentially non-new data
+        try:
+            payload_client: UiClient = UiClient.from_message(message)
+        except DTOInvalidPayloadException as e:
+            raise InitPayloadInvalidException(f'Invalid client initialization payload') from e
+        except KeyError as e:
+            raise InitPayloadInvalidException(f'Invalid client initialization payload') from e
+
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
-        name = self._name_broker.get_name()
+        name = self._name_broker.get_name(payload_client.name)
         client = UiClient(str(websocket.id), websocket, name)
         self._client_connections[client.id] = client
 
