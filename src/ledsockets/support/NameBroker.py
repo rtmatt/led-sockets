@@ -16,7 +16,7 @@ class NameBroker():
         return name not in self._active_names
 
     def _generate_name(self):
-        return self._faker.name()
+        return self._faker.unique.name()
 
     def get_name(self, preferred: str | None = None):
         candidate = preferred if preferred else self._generate_name()
