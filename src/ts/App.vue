@@ -74,9 +74,9 @@ function log(...args: any) {
 function updateState(attributes: HardwareStateAttributes | null) {
   const payload = attributes || {
     on: false,
-    message: '',
+    status_description: '',
   };
-  message.value = payload.message;
+  message.value = payload.status_description;
   status.value = payload.on;
 }
 
