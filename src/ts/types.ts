@@ -22,6 +22,9 @@ export interface PatchHardwareState extends SocketMessage {
 export type HardwareState = SocketMessage & {
   attributes: HardwareStateAttributes
   type: 'hardware_state',
+  relationships?: {
+    change_detail?: ChangeDetail
+  }
 }
 
 export function isHardwareState(obj: Record<string, any>): obj is HardwareState {
@@ -141,6 +144,46 @@ export function getUiMessageRelation(message: SocketMessage): UIMessage | null {
     return relationships.ui_message.data;
   }
   return null;
+}
+
+type ChangeDetail = SocketMessage & {
+  type: 'change_detail'
+  attributes: {
+    description: string
+    source_name: string
+    action_description: string
+    source_type: string
+    source_id: string
+  }
+}
+
+export function isChangeDetail(message: unknown): message is ChangeDetail {
+  if (!isSocketMessage(message)) {
+    console.log(message);
+    return false;
+  }
+  if (message.type !== 'change_detail') {
+    return false;
+  }
+  const {
+    attributes,
+  } = message;
+  if (!attributes) {
+    throw TypeError('Change detail attributes missing');
+  }
+  [
+    'description',
+    'source_name',
+    'action_description',
+    'source_type',
+    'source_id',
+  ].forEach((key) => {
+    if (!(key in attributes && typeof attributes[key] === 'string')) {
+      throw TypeError(`Invalid key ${key}`);
+    }
+  });
+
+  return true;
 }
 
 type EventMessage<E extends string, T extends SocketMessage> = [E, { data: T }]
