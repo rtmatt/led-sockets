@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, type Ref, ref, useTemplateRef } from 'vue';
 import {
+  type ChangeDetail,
   type ErrorMessage,
   type HardwareStateAttributes,
   type InitClientMessage,
@@ -79,6 +80,18 @@ function updateState(attributes: HardwareStateAttributes | null) {
   };
   message.value = payload.status_description;
   status.value = payload.on;
+}
+
+function onChangeDetail(data: ChangeDetail) {
+  const { attributes } = data;
+  const client_ = client.value;
+  let message = attributes.description;
+  if (client_ && attributes.source_type == client_.type && attributes.source_id == client_.id) {
+    message = `You ${attributes.action_description}`;
+  }
+  addMessage({
+    message,
+  });
 }
 
 function openConnection() {
@@ -180,6 +193,9 @@ function openConnection() {
       case 'hardware_updated':
         if (isHardwareState(payload)) {
           updateState(payload.attributes);
+          if (payload.relationships && payload.relationships.change_detail) {
+            onChangeDetail(payload.relationships.change_detail.data);
+          }
         }
         break;
       case 'client_joined':
