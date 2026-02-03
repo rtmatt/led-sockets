@@ -243,7 +243,7 @@ function onButtonClick() {
       {
         data: {
           id: '',
-          type: 'hardware_state',
+          type: 'hardware_state_partial',
           attributes: {
             on: !status.value,
           },
