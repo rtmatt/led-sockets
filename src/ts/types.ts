@@ -176,7 +176,7 @@ export function getUiMessageRelation(message: SocketMessage): UIMessage | null {
   return null;
 }
 
-type ChangeDetail = SocketMessage & {
+export type ChangeDetail = SocketMessage & {
   type: 'change_detail'
   attributes: {
     description: string
