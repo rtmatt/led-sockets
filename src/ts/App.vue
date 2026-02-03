@@ -27,6 +27,8 @@ const {
 let message: Ref<string> = ref('');
 let socketStatus: Ref<string> = ref('Closed');
 let connected: Ref<boolean> = ref(false);
+let has_connected: Ref<boolean> = ref(false);
+let has_reconnected: Ref<boolean> = ref(false);
 let connecting: Ref<boolean> = ref(false);
 let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
@@ -96,14 +98,17 @@ function onChangeDetail(data: ChangeDetail) {
 
 function openConnection() {
   log('OPENING CONNECTION');
+  socketStatus.value = has_connected.value ? 'Reconnecting' : 'Connecting';
   const socket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);
   const controller = new AbortController();
 
   socket.addEventListener('open', () => {
     log('OPEN');
+    has_reconnected.value = !!has_connected.value;
+    has_connected.value = true;
     connecting.value = false;
     connected.value = true;
-    socketStatus.value = 'Open';
+    socketStatus.value = 'Connected';
     const payload: InitClientMessage = [
       'init_client',
       {
@@ -125,11 +130,19 @@ function openConnection() {
 
   socket.addEventListener('close', () => {
     log('CLOSE');
+    if (connected.value) {
+      addMessage({
+        message: 'Disconnected from server',
+      });
+    } else {
+      addMessage({
+        message: has_connected.value ? 'Unable to reconnect' : 'Unable to connect',
+      });
+    }
+    connecting.value = false;
     connected.value = false;
-    socketStatus.value = 'Closed';
-    addMessage({
-      message: 'Disconnected from server',
-    });
+    socketStatus.value = 'Not Connected';
+
     controller.abort();// shouldn't be necessary, but oh well
   }, { signal: controller.signal });
 
@@ -165,11 +178,19 @@ function openConnection() {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
           if (payload.relationships.ui_client) {
-            client.value = payload.relationships.ui_client.data;
+
             localStorage.setItem('ledsockets.connection', JSON.stringify(payload.relationships.ui_client.data));
             const { name } = payload.relationships.ui_client.data.attributes;
+            let message = 'You joined.';
+            if (has_reconnected.value) {
+              message = 'You reconnected.';
+            }
+            if (!client.value || name !== client.value.attributes.name) {
+              message += ` Your name is ${name}.`;
+            }
+            client.value = payload.relationships.ui_client.data;
             addMessage({
-              message: `You joined.  Your name is ${name}.`,
+              message,
             });
           }
         }
@@ -366,11 +387,16 @@ ul {
         <dd>
           <span>{{ socketStatus }}&nbsp;</span>
           <small>
-            <a href="#" v-if="showReconnect" @click="reconnect">reconnect</a>
+            <a v-if="showReconnect" href="#" @click="reconnect">{{ has_connected ? 'reconnect' : 'connect' }}</a>
           </small>
         </dd>
         <dt>Hardware Status:</dt>
         <dd>{{ hardwareStatus }}</dd>
+        <dt>Client:</dt>
+        <dd>
+          <span v-if="client">You're connected as {{ client.attributes.name }} <button :disabled="!connected">Change Name</button></span>
+          <span v-else>You're not connected</span>
+        </dd>
       </dl>
     </div>
     <div ref="scrollParent" class="messages-container">
