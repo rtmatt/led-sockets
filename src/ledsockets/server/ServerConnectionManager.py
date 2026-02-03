@@ -238,8 +238,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
     async def _on_hardware_updated(self, message: Message):
         try:
-            attributes = message.payload['data']['attributes']
-            hardware_state = HardwareState.from_attributes(attributes)
+            hardware_state: HardwareState = HardwareState.from_message(message)
         except DTOInvalidAttributesException as e:
             raise HardwareMessageException(f'{e}') from e
         except KeyError as e:
