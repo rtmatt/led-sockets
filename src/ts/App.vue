@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, type Ref, ref, useTemplateRef } from 'vue';
 import {
-  getUiMessageRelation,
+  type ChangeDetail,
   type ErrorMessage,
   type HardwareStateAttributes,
   type InitClientMessage,
@@ -10,11 +10,11 @@ import {
   isHardwareState,
   isServerStatus,
   isTalkbackMessage,
-  isUiMessage,
+  isUiClient,
   type PatchHardwareStateMessage,
   type ServerError,
   type SocketMessage,
-  type TalkbackMessageMessage,
+  type UiClient,
   type UiMessageAttributes,
 } from './types';
 
@@ -32,6 +32,7 @@ let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
 const uiMessages: Ref<UiMessageAttributes[]> = ref([]);
 const messageContainer = useTemplateRef('scrollParent');
+const client: Ref<UiClient | null> = ref(null);
 
 let abortController: AbortController | undefined;
 let ws: WebSocket | null = null;
@@ -51,6 +52,21 @@ window.addEventListener('pageshow', (e: PageTransitionEvent) => {
   }
 });
 
+function addDevDebugControls() {
+  document.addEventListener('keyup', (e) => {
+    if (e.key == 'm') {
+      const payload: UiMessageAttributes = {
+        message: `Message ${Date.now()}`,
+      };
+      addMessage(payload);
+    }
+  });
+}
+
+if (!PROD) {
+  addDevDebugControls();
+}
+
 function log(...args: any) {
   if (!PROD) {
     console.log(...args);
@@ -60,10 +76,22 @@ function log(...args: any) {
 function updateState(attributes: HardwareStateAttributes | null) {
   const payload = attributes || {
     on: false,
-    message: '',
+    status_description: '',
   };
-  message.value = payload.message;
+  message.value = payload.status_description;
   status.value = payload.on;
+}
+
+function onChangeDetail(data: ChangeDetail) {
+  const { attributes } = data;
+  const client_ = client.value;
+  let message = attributes.description;
+  if (client_ && attributes.source_type == client_.type && attributes.source_id == client_.id) {
+    message = `You ${attributes.action_description}`;
+  }
+  addMessage({
+    message,
+  });
 }
 
 function openConnection() {
@@ -76,6 +104,7 @@ function openConnection() {
     connecting.value = false;
     connected.value = true;
     socketStatus.value = 'Open';
+    // @todo: pass existing data (local storage or current session client) to backend for preferred info
     const payload: InitClientMessage = [
       'init_client',
       {
@@ -98,6 +127,9 @@ function openConnection() {
     log('CLOSE');
     connected.value = false;
     socketStatus.value = 'Closed';
+    addMessage({
+      message: 'Disconnected from server',
+    });
     controller.abort();// shouldn't be necessary, but oh well
   }, { signal: controller.signal });
 
@@ -132,28 +164,50 @@ function openConnection() {
         if (isServerStatus(payload)) {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          if (payload.relationships.ui_client) {
+            client.value = payload.relationships.ui_client.data;
+            const { name } = payload.relationships.ui_client.data.attributes;
+            addMessage({
+              message: `You joined.  Your name is ${name}.`,
+            });
+          }
         }
         break;
       case 'hardware_disconnected':
         if (isServerStatus(payload)) {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          addMessage({
+            message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
+          });
         }
         break;
       case 'hardware_connected':
         if (isServerStatus(payload)) {
           updateState(payload.relationships.hardware_state.data.attributes);
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          addMessage({
+            message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
+          });
         }
         break;
       case 'hardware_updated':
         if (isHardwareState(payload)) {
           updateState(payload.attributes);
+          if (payload.relationships && payload.relationships.change_detail) {
+            onChangeDetail(payload.relationships.change_detail.data);
+          }
         }
         break;
       case 'client_joined':
         if (isServerStatus(payload)) {
-          log(`Client join received and unprocessed`);
+          log(`Client join server status received and unprocessed`);
+          if (payload.relationships && payload.relationships.ui_client) {
+            const { name } = payload.relationships.ui_client.data.attributes;
+            addMessage({
+              message: `${name} joined.`,
+            });
+          }
         }
         break;
       case 'talkback_message':
@@ -161,19 +215,19 @@ function openConnection() {
           log(`Talkback received: ${payload.attributes.message}`);
         }
         break;
-      case 'ui_message':
-        if (isUiMessage(payload)) {
-          addMessage(payload.attributes);
+      case 'client_disconnect':
+        if (payload.relationships && payload.relationships.ui_client) {
+          if (isUiClient(payload.relationships.ui_client.data)) {
+            const { name } = payload.relationships.ui_client.data.attributes;
+            addMessage({
+              message: `${name} left`,
+            });
+          }
         }
         break;
       default:
         console.warn('Unprocessed message received: ' + event_type);
         break;
-    }
-
-    const uiMessageRelation = getUiMessageRelation(payload);
-    if (uiMessageRelation) {
-      addMessage(uiMessageRelation.attributes);
     }
 
   }, { signal: controller.signal });
@@ -206,7 +260,7 @@ function onButtonClick() {
       {
         data: {
           id: '',
-          type: 'hardware_state',
+          type: 'hardware_state_partial',
           attributes: {
             on: !status.value,
           },
@@ -308,9 +362,11 @@ ul {
         </dd>
         <dt>Hardware Status:</dt>
         <dd>{{ hardwareStatus }}</dd>
+        <dt>Client:</dt>
+        <dd>{{ client }}</dd>
       </dl>
     </div>
-    <div class="messages-container" ref="scrollParent">
+    <div ref="scrollParent" class="messages-container">
       <div class="messages-container__content">
         <ul>
           <li v-for="uiMessage in displayMessages">

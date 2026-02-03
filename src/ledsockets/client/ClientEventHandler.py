@@ -10,6 +10,7 @@ from ledsockets.board.BoardController import BoardController
 from ledsockets.board.MockBoard import MockBoard
 from ledsockets.contracts.MessageBroker import MessageBroker
 from ledsockets.dto.AbstractDto import DTOInvalidPayloadException
+from ledsockets.dto.ChangeDetail import ChangeDetail
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.PartialHardwareState import PartialHardwareState
 from ledsockets.dto.TalkbackMessage import TalkbackMessage
@@ -30,7 +31,7 @@ class ClientEventHandler(Logs):
 
     def __init__(self, board: AbstractBoard):
         Logs.__init__(self)
-        self._state = HardwareState()
+        self._state: HardwareState = HardwareState()
         self._board: AbstractBoard = board
         self._board.add_button_press_handler(self._on_board_button_press)
         self._connection = None
@@ -71,13 +72,22 @@ class ClientEventHandler(Logs):
             self._board.buzz(False)
             self._board.set_blue(False)
             self._state.on = False
-            self._state.message = "I turned it off"
+            self._state.status_description = ""
+            change_detail = ChangeDetail.from_attributes({
+                "description": f"I turned it off at the source",
+                "source_name": "I",
+                "action_description": "turned it off at the source",
+                "source_type": "board",
+                "source_id": "",
+            })
             try:
+                payload = self._state
+                payload.change_detail = change_detail
                 asyncio.run_coroutine_threadsafe(
                     self._message_broker.send_message(json.dumps([
                         'hardware_updated',
                         {
-                            "data": self._state.toDict()
+                            "data": payload.toDict()
                         }
                     ])),
                     self._event_loop
@@ -130,24 +140,44 @@ class ClientEventHandler(Logs):
     async def _on_patch_hardware_state_message(self, message: Message):
         try:
             dto = PartialHardwareState.from_message(message)
+            source = dto.source
         except KeyError as e:
             raise ServerMessageException(f'Invalid talkback payload "{e}"')
 
         if dto.on:
             self._state.on = True
-            self._state.message = "The light and buzzer are on.  If I'm around it's annoying me."
+            self._state.status_description = "The light and buzzer are on.  If I'm around it's annoying me."
             self._board.set_blue(True)
             self._board.buzz()
+            change_detail = ChangeDetail.from_attributes({
+                "description": f"{source.name} turned it on",
+                "source_name": source.name,
+                "action_description": "turned it on",
+                "source_type": source.type,
+                "source_id": source.id,
+            })
+
         else:
             self._state.on = False
-            self._state.message = ""
+            self._state.status_description = ""
             self._board.set_blue(False)
             self._board.buzz(False)
+            change_detail = ChangeDetail.from_attributes({
+                "description": f"{source.name} turned it off",
+                "source_name": source.name,
+                "action_description": "turned it off",
+                "source_type": source.TYPE,
+                "source_id": source.id,
+            })
+
+        payload: HardwareState = self._state
+        payload.source = dto.source
+        payload.change_detail = change_detail
 
         await self.message_broker.send_message(json.dumps([
             'hardware_updated',
             {
-                "data": self._state.toDict()
+                "data": payload.toDict()
             }
         ]))
 

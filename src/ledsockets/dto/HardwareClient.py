@@ -1,3 +1,5 @@
+from typing import Dict
+
 from ledsockets.dto.AbstractDto import AbstractDto
 
 
@@ -10,3 +12,7 @@ class HardwareClient(AbstractDto):
 
     def get_attributes(self):
         return {}
+
+    @classmethod
+    def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
+        return cls(id, None)
