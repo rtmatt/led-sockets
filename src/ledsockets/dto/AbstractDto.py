@@ -43,7 +43,11 @@ class AbstractDto(ABC):
     def get_relationships(self):
         return self.relationships
 
-    def set_relationship(self, key, model: AbstractDto | Dict):
+    def set_relationship(self, key, model):
+        """
+        :param key: str
+        :param model: AbstractDto | Dict
+        """
         if self.relationships is None:
             self.relationships = {}
         data = model
@@ -55,7 +59,11 @@ class AbstractDto(ABC):
             "data": data
         }
 
-    def append_relationship(self, key, model: AbstractDto | Dict):
+    def append_relationship(self, key, model):
+        """
+        :param key: str
+        :param model: AbstractDto | Dict
+        """
         if self.relationships is None:
             self.relationships = {}
         data = model
