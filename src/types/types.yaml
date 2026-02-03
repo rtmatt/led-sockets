@@ -53,10 +53,6 @@ type: ui_client
 attributes:
   name: ""
 ---
-type: ui_message
-attributes:
-  message: ""
----
 # Error
 detail: ""
 ---
