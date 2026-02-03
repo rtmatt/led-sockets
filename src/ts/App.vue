@@ -5,7 +5,6 @@ import {
   type ErrorMessage,
   type HardwareStateAttributes,
   type InitClientMessage,
-  isChangeDetail,
   isErrorMessage,
   isEventMessage,
   isHardwareState,
@@ -194,9 +193,7 @@ function openConnection() {
       case 'hardware_updated':
         if (isHardwareState(payload)) {
           updateState(payload.attributes);
-        }
-        if (payload.relationships && payload.relationships.change_detail) {
-          if (isChangeDetail(payload.relationships.change_detail.data)) {
+          if (payload.relationships && payload.relationships.change_detail) {
             onChangeDetail(payload.relationships.change_detail.data);
           }
         }
