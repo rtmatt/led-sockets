@@ -15,6 +15,7 @@ from ledsockets.dto.TalkbackMessage import TalkbackMessage
 from ledsockets.dto.UiClient import UiClient
 from ledsockets.log.LogsConcern import Logs
 from ledsockets.support.Message import Message, MessageException
+from ledsockets.support.NameBroker import NameBroker
 
 
 # <editor-fold desc="Exceptions">
@@ -65,6 +66,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         self._hardware_connection: HardwareClient | None = None
         self._client_connections: Dict[str, UiClient] = {}
         self._hardware_lock = asyncio.Lock()
+        self._name_broker = NameBroker()
 
     @property
     def is_hardware_connected(self):
@@ -75,6 +77,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         client_id = client.id
         if client_id and client_id in self._client_connections:
             del self._client_connections[client_id]
+        self._name_broker.release_name(client.name)
 
         payload = self._get_status()
         payload.ui_client = client
@@ -157,7 +160,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
 
     def _record_client_connection(self, websocket: ServerConnection):
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
-        client = UiClient(str(websocket.id), websocket)
+        name = self._name_broker.get_name()
+        client = UiClient(str(websocket.id), websocket, name)
         self._client_connections[client.id] = client
 
         return client
