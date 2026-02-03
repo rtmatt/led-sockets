@@ -30,7 +30,7 @@ class ClientEventHandler(Logs):
 
     def __init__(self, board: AbstractBoard):
         Logs.__init__(self)
-        self._state = HardwareState()
+        self._state: HardwareState = HardwareState()
         self._board: AbstractBoard = board
         self._board.add_button_press_handler(self._on_board_button_press)
         self._connection = None
@@ -135,12 +135,12 @@ class ClientEventHandler(Logs):
 
         if dto.on:
             self._state.on = True
-            self._state.message = "The light and buzzer are on.  If I'm around it's annoying me."
+            self._state.status_description = "The light and buzzer are on.  If I'm around it's annoying me."
             self._board.set_blue(True)
             self._board.buzz()
         else:
             self._state.on = False
-            self._state.message = ""
+            self._state.status_description = ""
             self._board.set_blue(False)
             self._board.buzz(False)
 
