@@ -166,6 +166,7 @@ function openConnection() {
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
           if (payload.relationships.ui_client) {
             client.value = payload.relationships.ui_client.data;
+            localStorage.setItem('ledsockets.connection', JSON.stringify(payload.relationships.ui_client.data));
             const { name } = payload.relationships.ui_client.data.attributes;
             addMessage({
               message: `You joined.  Your name is ${name}.`,
@@ -290,6 +291,14 @@ function addMessage(message: UiMessageAttributes) {
 }
 
 onMounted(() => {
+  const storedClient = localStorage.getItem('ledsockets.connection');
+  if (storedClient) {
+    const previousConnection = JSON.parse(storedClient);
+    if (previousConnection) {
+      client.value = previousConnection;
+    }
+  }
+
   connect();
 });
 const hardwareStatus = computed(() => {
