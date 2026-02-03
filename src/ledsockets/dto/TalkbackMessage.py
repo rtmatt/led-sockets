@@ -1,5 +1,6 @@
-from ledsockets.dto.AbstractDto import AbstractDto, DTOInvalidPayloadException
-from ledsockets.support.Message import Message
+from typing import Dict
+
+from ledsockets.dto.AbstractDto import AbstractDto
 
 
 class TalkbackMessage(AbstractDto):
@@ -15,10 +16,5 @@ class TalkbackMessage(AbstractDto):
         }
 
     @classmethod
-    def from_message(cls, message: Message):
-        try:
-            data = message.payload['data']
-            attributes = data['attributes']
-            return cls(attributes['message'])
-        except KeyError as e:
-            raise DTOInvalidPayloadException(f'Payload missing key {e}') from e
+    def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
+        return cls(attributes['message'], id)
