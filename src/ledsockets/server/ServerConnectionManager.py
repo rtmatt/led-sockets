@@ -298,8 +298,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
     def _record_hardware_connection(self, websocket: ServerConnection, message: Message):
         self._log(f'Initializing hardware from {websocket.remote_address}', 'info')
         try:
-            attributes = message.payload['data']['attributes']
-            hardware_state = HardwareState.from_attributes(attributes)
+            hardware_state = HardwareState.from_message(message)
         except KeyError as e:
             raise InvalidHardwareInitPayloadException(f'Invalid attributes payload: "{e}"') from e
         except DTOInvalidAttributesException as e:
