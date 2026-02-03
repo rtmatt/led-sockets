@@ -110,6 +110,7 @@ function openConnection() {
         data: {
           id: '',
           type: 'ui_client',
+          attributes: client.value ? client.value.attributes : {},
         },
       },
     ];

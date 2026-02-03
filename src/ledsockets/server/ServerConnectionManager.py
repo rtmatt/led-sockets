@@ -158,9 +158,16 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             }
         ]), exclude_ids=[client.id])
 
-    def _record_client_connection(self, websocket: ServerConnection):
+    def _record_client_connection(self, websocket: ServerConnection, message: Message):
+        try:
+            payload_client: UiClient = UiClient.from_message(message)
+        except DTOInvalidPayloadException as e:
+            raise InitPayloadInvalidException(f'Invalid client initialization payload') from e
+        except KeyError as e:
+            raise InitPayloadInvalidException(f'Invalid client initialization payload') from e
+
         self._log(f'Initializing client from {websocket.remote_address}', 'info')
-        name = self._name_broker.get_name()
+        name = self._name_broker.get_name(payload_client.name)
         client = UiClient(str(websocket.id), websocket, name)
         self._client_connections[client.id] = client
 
@@ -272,6 +279,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         connection = hardware.connection
         async for message in connection:
             try:
+                # @todo: pass connection param for consistency
                 await self._handle_hardware_message(message)
             except HardwareMessageException as e:
                 self._log(f"Ignoring invalid Hardware message: {e}", 'warning')
@@ -320,7 +328,7 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             await self._handle_hardware_disconnect()
 
     async def _handle_client_connection(self, websocket: ServerConnection, message: Message):
-        client = self._record_client_connection(websocket)
+        client = self._record_client_connection(websocket, message)
         try:
             await self._init_client_connection(client)
             await self._run_client_connection(client)
