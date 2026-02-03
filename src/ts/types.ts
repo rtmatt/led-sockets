@@ -23,7 +23,9 @@ export type HardwareState = SocketMessage & {
   attributes: HardwareStateAttributes
   type: 'hardware_state',
   relationships?: {
-    change_detail?: ChangeDetail
+    change_detail?: {
+      data: ChangeDetail
+    }
   }
 }
 
@@ -31,6 +33,7 @@ export function isHardwareState(obj: Record<string, any>): obj is HardwareState 
   const {
     type,
     attributes,
+    relationships,
   } = obj;
   if (type !== 'hardware_state') {
     return false;
@@ -38,7 +41,19 @@ export function isHardwareState(obj: Record<string, any>): obj is HardwareState 
   if (!attributes || typeof attributes !== 'object') {
     throw TypeError('"hardware_state" missing "attributes"');
   }
-  return 'on' in attributes && typeof attributes.on == 'boolean' && 'status_description' in attributes && typeof attributes.status_description == 'string';
+  if (!('on' in attributes && typeof attributes.on == 'boolean' && 'status_description' in attributes && typeof attributes.status_description == 'string')) {
+    throw TypeError('"hardware_state" invalid "attributes"');
+  }
+  if (relationships) {
+    const {
+      change_detail,
+    } = relationships;
+    if (change_detail && !isChangeDetail(change_detail.data)) {
+      throw TypeError('"hardware_state" invalid "change_detail" relationship');
+    }
+  }
+
+  return true;
 }
 
 type TalkbackMessage = SocketMessage & {

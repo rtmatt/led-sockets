@@ -166,10 +166,6 @@ function openConnection() {
           isHardwareConnected.value = payload.attributes.hardware_is_connected;
           if (payload.relationships.ui_client) {
             client.value = payload.relationships.ui_client.data;
-          }
-        }
-        if (payload.relationships && payload.relationships.ui_client) {
-          if (isUiClient(payload.relationships.ui_client.data)) {
             const { name } = payload.relationships.ui_client.data.attributes;
             addMessage({
               message: `You joined.  Your name is ${name}.`,
@@ -198,6 +194,9 @@ function openConnection() {
       case 'hardware_updated':
         if (isHardwareState(payload)) {
           updateState(payload.attributes);
+          if (payload.relationships && payload.relationships.change_detail) {
+            onChangeDetail(payload.relationships.change_detail.data);
+          }
         }
         if (payload.relationships && payload.relationships.change_detail) {
           if (isChangeDetail(payload.relationships.change_detail.data)) {
@@ -208,9 +207,7 @@ function openConnection() {
       case 'client_joined':
         if (isServerStatus(payload)) {
           log(`Client join server status received and unprocessed`);
-        }
-        if (payload.relationships && payload.relationships.ui_client) {
-          if (isUiClient(payload.relationships.ui_client.data)) {
+          if (payload.relationships && payload.relationships.ui_client) {
             const { name } = payload.relationships.ui_client.data.attributes;
             addMessage({
               message: `${name} joined.`,
