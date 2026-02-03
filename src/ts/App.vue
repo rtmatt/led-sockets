@@ -112,6 +112,9 @@ function openConnection() {
     log('CLOSE');
     connected.value = false;
     socketStatus.value = 'Closed';
+    addMessage({
+      message: 'Disconnected from server',
+    });
     controller.abort();// shouldn't be necessary, but oh well
   }, { signal: controller.signal });
 
