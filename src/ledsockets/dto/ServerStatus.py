@@ -1,3 +1,5 @@
+from typing import Dict
+
 from ledsockets.dto.AbstractDto import AbstractDto
 from ledsockets.dto.UiClient import UiClient
 
@@ -22,8 +24,11 @@ class ServerStatus(AbstractDto):
         else:
             self.remove_relationship('ui_client')
 
-
     def get_attributes(self):
         return {
             'hardware_is_connected': self.hardware_is_connected
         }
+
+    @classmethod
+    def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
+        return cls(bool(attributes.get('hardware_is_connected')))
