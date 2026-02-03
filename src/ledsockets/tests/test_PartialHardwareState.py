@@ -11,23 +11,23 @@ from ledsockets.support.Message import Message
 class TestPartialHardwareState(unittest.TestCase):
     def test_initialization_with_attributes(self):
         """Test initialization with provided attributes."""
-        state = PartialHardwareState(on=True, message="Test message", id="1234")
+        state = PartialHardwareState(True, "Test message", "1234")
         self.assertEqual(state.on, True)
-        self.assertEqual(state.message, "Test message")
+        self.assertEqual(state.status_description, "Test message")
         self.assertEqual(state.id, "1234")
 
     def test_initialization_without_attributes(self):
         """Test initialization without attributes."""
         state = PartialHardwareState()
         self.assertIsNone(state.on)
-        self.assertIsNone(state.message)
+        self.assertIsNone(state.status_description)
         self.assertEqual(state.id, "")
 
     def test_get_attributes_when_set(self):
         """Test get_attributes() returns correct values when attributes are set."""
-        state = PartialHardwareState(on=True, message="active")
+        state = PartialHardwareState(True, "active")
         attributes = state.get_attributes()
-        self.assertEqual(attributes, {"on": True, "message": "active"})
+        self.assertEqual(attributes, {"on": True, "status_description": "active"})
 
     def test_get_attributes_when_empty(self):
         """Test get_attributes() returns an empty dictionary when no attributes are set."""
@@ -37,10 +37,10 @@ class TestPartialHardwareState(unittest.TestCase):
 
     def test_inst_from_attributes_creates_instance_correctly(self):
         """Test _inst_from_attributes() correctly creates an instance with attributes."""
-        attributes = {"on": False, "message": "inactive"}
+        attributes = {"on": False, "status_description": "inactive"}
         state = PartialHardwareState._inst_from_attributes(attributes, id="123")
         self.assertEqual(state.on, False)
-        self.assertEqual(state.message, "inactive")
+        self.assertEqual(state.status_description, "inactive")
         self.assertEqual(state.id, "123")
 
     def test_from_message_valid_message(self):
@@ -48,7 +48,7 @@ class TestPartialHardwareState(unittest.TestCase):
         payload = {
             "data": {
                 "type": "hardware_state_partial",
-                "attributes": {"on": True, "message": "Test"},
+                "attributes": {"on": True, "status_description": "Test"},
                 "id": "5678",
                 "relationships": {
                     "source": {
@@ -60,7 +60,7 @@ class TestPartialHardwareState(unittest.TestCase):
         message = Message(type="patch_hardware_state", payload=payload)
         state = PartialHardwareState.from_message(message)
         self.assertEqual(state.on, True)
-        self.assertEqual(state.message, "Test")
+        self.assertEqual(state.status_description, "Test")
         self.assertEqual(state.id, "5678")
         self.assertIn("source", state.get_relationships())
 
@@ -94,7 +94,7 @@ class TestPartialHardwareState(unittest.TestCase):
         payload = {
             "data": {
                 "type": "hardware_state_partial",
-                "attributes": {"on": True, "message": "Test"},
+                "attributes": {"on": True, "status_description": "Test"},
                 "id": "5678",
                 "relationships": {
                     "source": {
@@ -115,7 +115,7 @@ class TestPartialHardwareState(unittest.TestCase):
         payload = {
             "data": {
                 "type": "hardware_state_partial",
-                "attributes": {"on": True, "message": "Test"},
+                "attributes": {"on": True, "status_description": "Test"},
                 "id": "5678",
                 "relationships": {
                     "source": {
