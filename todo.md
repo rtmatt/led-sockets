@@ -1,7 +1,4 @@
 # Next:
-- [ ] Add message flow for updating hardware
-    - Relay client info to hardware
-    - Relay back and say "X/You" blah blah based on client connection
 - [ ] Add client names
     - assign names on init from faker library
     - include "preferred name" in init payload based on local storage
