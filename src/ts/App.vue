@@ -106,6 +106,7 @@ function openConnection() {
     connecting.value = false;
     connected.value = true;
     socketStatus.value = 'Open';
+    // @todo: pass existing data (local storage or current session client) to backend for preferred info
     const payload: InitClientMessage = [
       'init_client',
       {
@@ -346,6 +347,8 @@ ul {
         </dd>
         <dt>Hardware Status:</dt>
         <dd>{{ hardwareStatus }}</dd>
+        <dt>Client:</dt>
+        <dd>{{ client }}</dd>
       </dl>
     </div>
     <div ref="scrollParent" class="messages-container">
