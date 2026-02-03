@@ -20,6 +20,10 @@ class AbstractDto(ABC):
         self.id = id
         self.relationships = None
 
+    @property
+    def type(self):
+        return self.TYPE
+
     def toJSON(self):
         result = self.toDict()
 
