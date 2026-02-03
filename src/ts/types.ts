@@ -11,7 +11,7 @@ export function isSocketMessage(message: unknown): message is SocketMessage {
 
 export type HardwareStateAttributes = {
   on: boolean;
-  message: string; // @todo: remove
+  status_description: string;
 }
 
 export interface PatchHardwareState extends SocketMessage {
@@ -35,7 +35,7 @@ export function isHardwareState(obj: Record<string, any>): obj is HardwareState 
   if (!attributes || typeof attributes !== 'object') {
     throw TypeError('"hardware_state" missing "attributes"');
   }
-  return 'on' in attributes && typeof attributes.on == 'boolean' && 'message' in attributes && typeof attributes.message == 'string';
+  return 'on' in attributes && typeof attributes.on == 'boolean' && 'status_description' in attributes && typeof attributes.status_description == 'string';
 }
 
 type TalkbackMessage = SocketMessage & {
