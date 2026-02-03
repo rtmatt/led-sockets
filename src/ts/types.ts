@@ -59,6 +59,30 @@ export function isTalkbackMessage(obj: Record<string, any>): obj is TalkbackMess
   return 'message' in attributes && typeof attributes.message == 'string';
 }
 
+export type UiClient = SocketMessage & {
+  type: 'ui_client'
+  attributes: {
+    name: string
+  }
+}
+
+export function isUiClient(obj: Record<string, any>): obj is UiClient {
+  const {
+    type,
+    attributes,
+  } = obj;
+  if (type !== 'ui_client') {
+    return false;
+  }
+  if (!attributes || typeof attributes !== 'object') {
+    throw TypeError('"ui_client" missing "attributes"');
+  }
+  if ('name' in attributes && typeof attributes.name == 'string') {
+    return true;
+  }
+  throw TypeError('"ui_client" invalid "attributes"');
+}
+
 type ServerStatus = SocketMessage & {
   type: 'server_status',
   attributes: {
@@ -68,6 +92,9 @@ type ServerStatus = SocketMessage & {
     hardware_state: {
       data: HardwareState
     },
+    ui_client?: {
+      data: UiClient
+    }
   }
 }
 
@@ -94,11 +121,14 @@ export function isServerStatus(obj: Record<string, any>): obj is ServerStatus {
     // @todo: add predicates for these if they ever end up in use
     // ui_clients,
     // hardware_client,
+    ui_client,
   } = relationships;
   if (!isHardwareState(hardware_state.data)) {
     throw TypeError('"server_status" missing "hardware_state" relationship');
   }
-
+  if (ui_client && !isUiClient(ui_client.data)) {
+    throw TypeError('"server_status" invalid "ui_client" relationship');
+  }
   return true;
 }
 
