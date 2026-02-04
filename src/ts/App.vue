@@ -34,6 +34,7 @@ let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
 const uiMessages: Ref<UiMessageAttributes[]> = ref([]);
 const messageContainer = useTemplateRef('scrollParent');
+const connectedClients: Ref<UiClient[]> = ref([]);
 const client: Ref<UiClient | null> = ref(null);
 let changingName: Ref<boolean> = ref(false);
 
@@ -100,6 +101,9 @@ function onChangeDetail(data: ChangeDetail) {
 function updateServerStatus(payload: ServerStatus) {
   updateState(payload.relationships.hardware_state.data.attributes);
   isHardwareConnected.value = payload.attributes.hardware_is_connected;
+  if (payload.relationships.ui_clients) {
+    connectedClients.value = payload.relationships.ui_clients.data;
+  }
 }
 
 function openConnection() {

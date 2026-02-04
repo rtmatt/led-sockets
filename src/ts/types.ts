@@ -113,6 +113,9 @@ export type ServerStatus = SocketMessage & {
     ui_client?: {
       data: UiClient
     }
+    ui_clients?: {
+      data: UiClient[]
+    }
     change_detail?: {
       data: ChangeDetail
     }
@@ -139,8 +142,8 @@ export function isServerStatus(obj: Record<string, any>): obj is ServerStatus {
   }
   const {
     hardware_state,
+    ui_clients,
     // @todo: add predicates for these if they ever end up in use
-    // ui_clients,
     // hardware_client,
     change_detail,
     ui_client,
@@ -153,6 +156,19 @@ export function isServerStatus(obj: Record<string, any>): obj is ServerStatus {
   }
   if (change_detail && !isChangeDetail(change_detail.data)) {
     throw TypeError('"server_status" invalid "change_detail" relationship');
+  }
+  if (ui_clients) {
+    if (!Array.isArray(ui_clients.data)) {
+      throw TypeError('"server_status" invalid "ui_clients" relationship (not array)');
+    }
+    ui_clients.data.forEach((item: unknown) => {
+      if (!isSocketMessage(item)) {
+        throw TypeError('"server_status" invalid "ui_clients" relationship (item not SM)');
+      }
+      if (!isUiClient(item)) {
+        throw TypeError('"server_status" invalid "ui_clients" relationship (item not UIC)');
+      }
+    });
   }
   return true;
 }
