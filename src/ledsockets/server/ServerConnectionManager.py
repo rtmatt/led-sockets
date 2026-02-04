@@ -311,7 +311,6 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
         connection = hardware.connection
         async for message in connection:
             try:
-                # @todo: pass connection param for consistency
                 await self._handle_hardware_message(message)
             except HardwareMessageException as e:
                 self._log(f"Ignoring invalid Hardware message: {e}", 'warning')
