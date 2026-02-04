@@ -1,8 +1,3 @@
-# Next:
-- [ ] Add client names
-    - assign names on init from faker library
-    - include "preferred name" in init payload based on local storage
-    - maintain assigned names dict to ensure unique names
 # TODO
 - [ ] reconnect/timeout status
     - [ ] "server-side heartbeats (pings/pongs) to detect dead connections, implementing a smart client-side
