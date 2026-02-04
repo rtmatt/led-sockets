@@ -119,6 +119,7 @@ class AbstractDto(ABC):
         return inst
 
     @classmethod
+    @abstractmethod
     def _inst_from_attributes(cls, attributes: Dict, id: str = ''):
         raise Exception(f'"_inst_from_attributes" not defined for {cls.TYPE}')
 
