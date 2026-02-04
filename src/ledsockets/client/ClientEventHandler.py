@@ -79,6 +79,8 @@ class ClientEventHandler(Logs):
                 "action_description": "turned it off at the source",
                 "source_type": "board",
                 "source_id": "",
+                "old_value": True,
+                "new_value": False,
             })
             try:
                 payload = self._state
@@ -144,6 +146,8 @@ class ClientEventHandler(Logs):
         except KeyError as e:
             raise ServerMessageException(f'Invalid talkback payload "{e}"')
 
+        original_value = self._state.on
+
         if dto.on:
             self._state.on = True
             self._state.status_description = "The light and buzzer are on.  If I'm around it's annoying me."
@@ -155,6 +159,8 @@ class ClientEventHandler(Logs):
                 "action_description": "turned it on",
                 "source_type": source.type,
                 "source_id": source.id,
+                "old_value": original_value,
+                "new_value": True,
             })
 
         else:
@@ -168,6 +174,8 @@ class ClientEventHandler(Logs):
                 "action_description": "turned it off",
                 "source_type": source.TYPE,
                 "source_id": source.id,
+                "old_value": original_value,
+                "new_value": False,
             })
 
         payload: HardwareState = self._state

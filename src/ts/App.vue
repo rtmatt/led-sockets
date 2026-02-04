@@ -10,9 +10,9 @@ import {
   isHardwareState,
   isServerStatus,
   isTalkbackMessage,
-  isUiClient,
   type PatchHardwareStateMessage,
   type ServerError,
+  type ServerStatus,
   type SocketMessage,
   type UiClient,
   type UiMessageAttributes,
@@ -27,12 +27,16 @@ const {
 let message: Ref<string> = ref('');
 let socketStatus: Ref<string> = ref('Closed');
 let connected: Ref<boolean> = ref(false);
+let has_connected: Ref<boolean> = ref(false);
+let has_reconnected: Ref<boolean> = ref(false);
 let connecting: Ref<boolean> = ref(false);
 let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
 const uiMessages: Ref<UiMessageAttributes[]> = ref([]);
 const messageContainer = useTemplateRef('scrollParent');
+const connectedClients: Ref<UiClient[]> = ref([]);
 const client: Ref<UiClient | null> = ref(null);
+let changingName: Ref<boolean> = ref(false);
 
 let abortController: AbortController | undefined;
 let ws: WebSocket | null = null;
@@ -94,22 +98,34 @@ function onChangeDetail(data: ChangeDetail) {
   });
 }
 
+function updateServerStatus(payload: ServerStatus) {
+  updateState(payload.relationships.hardware_state.data.attributes);
+  isHardwareConnected.value = payload.attributes.hardware_is_connected;
+  if (payload.relationships.ui_clients) {
+    connectedClients.value = payload.relationships.ui_clients.data;
+  }
+}
+
 function openConnection() {
   log('OPENING CONNECTION');
+  socketStatus.value = has_connected.value ? 'Reconnecting' : 'Connecting';
   const socket = new WebSocket(PROD ? VITE_PRODUCTION_WEB_SOCKET_URL : VITE_WEB_SOCKET_URL);
   const controller = new AbortController();
 
   socket.addEventListener('open', () => {
     log('OPEN');
+    has_reconnected.value = !!has_connected.value;
+    has_connected.value = true;
     connecting.value = false;
     connected.value = true;
-    socketStatus.value = 'Open';
+    socketStatus.value = 'Connected';
     const payload: InitClientMessage = [
       'init_client',
       {
         data: {
           id: '',
           type: 'ui_client',
+          attributes: client.value ? client.value.attributes : {},
         },
       },
     ];
@@ -124,11 +140,19 @@ function openConnection() {
 
   socket.addEventListener('close', () => {
     log('CLOSE');
+    if (connected.value) {
+      addMessage({
+        message: 'Disconnected from server',
+      });
+    } else {
+      addMessage({
+        message: has_connected.value ? 'Unable to reconnect' : 'Unable to connect',
+      });
+    }
+    connecting.value = false;
     connected.value = false;
-    socketStatus.value = 'Closed';
-    addMessage({
-      message: 'Disconnected from server',
-    });
+    socketStatus.value = 'Not Connected';
+
     controller.abort();// shouldn't be necessary, but oh well
   }, { signal: controller.signal });
 
@@ -161,21 +185,28 @@ function openConnection() {
     switch (event_type) {
       case'client_init':
         if (isServerStatus(payload)) {
-          updateState(payload.relationships.hardware_state.data.attributes);
-          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          updateServerStatus(payload);
           if (payload.relationships.ui_client) {
-            client.value = payload.relationships.ui_client.data;
+
+            localStorage.setItem('ledsockets.connection', JSON.stringify(payload.relationships.ui_client.data));
             const { name } = payload.relationships.ui_client.data.attributes;
+            let message = 'You joined.';
+            if (has_reconnected.value) {
+              message = 'You reconnected.';
+            }
+            if (!client.value || name !== client.value.attributes.name) {
+              message += ` Your name is ${name}.`;
+            }
+            client.value = payload.relationships.ui_client.data;
             addMessage({
-              message: `You joined.  Your name is ${name}.`,
+              message,
             });
           }
         }
         break;
       case 'hardware_disconnected':
         if (isServerStatus(payload)) {
-          updateState(payload.relationships.hardware_state.data.attributes);
-          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          updateServerStatus(payload);
           addMessage({
             message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
           });
@@ -183,8 +214,7 @@ function openConnection() {
         break;
       case 'hardware_connected':
         if (isServerStatus(payload)) {
-          updateState(payload.relationships.hardware_state.data.attributes);
-          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          updateServerStatus(payload);
           addMessage({
             message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
           });
@@ -200,7 +230,7 @@ function openConnection() {
         break;
       case 'client_joined':
         if (isServerStatus(payload)) {
-          log(`Client join server status received and unprocessed`);
+          updateServerStatus(payload);
           if (payload.relationships && payload.relationships.ui_client) {
             const { name } = payload.relationships.ui_client.data.attributes;
             addMessage({
@@ -215,12 +245,50 @@ function openConnection() {
         }
         break;
       case 'client_disconnect':
-        if (payload.relationships && payload.relationships.ui_client) {
-          if (isUiClient(payload.relationships.ui_client.data)) {
+        if (isServerStatus(payload)) {
+          updateServerStatus(payload);
+          if (payload.relationships && payload.relationships.ui_client) {
             const { name } = payload.relationships.ui_client.data.attributes;
             addMessage({
               message: `${name} left`,
             });
+          }
+        }
+        break;
+      case 'client_name_changed':
+        if (isServerStatus(payload)) {
+          updateServerStatus(payload);
+
+          const ui_client_payload = payload.relationships && payload.relationships.ui_client;
+          if (ui_client_payload) {
+            const {
+              id,
+            } = ui_client_payload.data;
+            if (!!client.value && id === client.value.id) {
+              changingName.value = false;
+              client.value = ui_client_payload.data;
+            }
+          }
+
+          const change_detail_payload = payload.relationships && payload.relationships.change_detail;
+          if (change_detail_payload) {
+            const {
+              attributes,
+            } = change_detail_payload.data;
+            const {
+              source_id,
+              old_value,
+              new_value,
+            } = attributes;
+            if (client.value && client.value.id == source_id) {
+              addMessage({
+                message: `You are now ${new_value}.`,
+              });
+            } else {
+              addMessage({
+                message: `${old_value} is now ${new_value}.`,
+              });
+            }
           }
         }
         break;
@@ -278,6 +346,15 @@ function reconnect() {
   connect();
 }
 
+function changeName() {
+  log('CHANGE NAME');
+  if (!changingName.value && connected.value && ws) {
+    changingName.value = true;
+    const payload = ['change_name', {}];
+    ws.send(JSON.stringify(payload));
+  }
+}
+
 function addMessage(message: UiMessageAttributes) {
   uiMessages.value.push(message);
   nextTick(() => {
@@ -289,6 +366,14 @@ function addMessage(message: UiMessageAttributes) {
 }
 
 onMounted(() => {
+  const storedClient = localStorage.getItem('ledsockets.connection');
+  if (storedClient) {
+    const previousConnection = JSON.parse(storedClient);
+    if (previousConnection) {
+      client.value = previousConnection;
+    }
+  }
+
   connect();
 });
 const hardwareStatus = computed(() => {
@@ -311,6 +396,14 @@ const displayMessages = computed(() => {
 });
 const checkboxChecked = computed(() => {
   return status.value;
+});
+const changeNameDisabled = computed(() => {
+  return !connected.value || changingName.value;
+});
+const displayClients = computed(() => {
+  return connectedClients.value.filter((i: UiClient) => {
+    return !client.value || client.value.id != i.id;
+  });
 });
 </script>
 <style>
@@ -356,11 +449,30 @@ ul {
         <dd>
           <span>{{ socketStatus }}&nbsp;</span>
           <small>
-            <a href="#" v-if="showReconnect" @click="reconnect">reconnect</a>
+            <a v-if="showReconnect" href="#" @click="reconnect">{{ has_connected ? 'reconnect' : 'connect' }}</a>
           </small>
         </dd>
         <dt>Hardware Status:</dt>
         <dd>{{ hardwareStatus }}</dd>
+        <dt>Connected:</dt>
+        <dd>
+          <span v-if="client">
+            <span>{{ client.attributes.name }} (You)</span>
+            <span>&nbsp;</span>
+            <button
+            :disabled="changeNameDisabled"
+            @click="changeName"
+            >Change Name</button>
+          </span>
+          <span v-else>You're not connected</span>
+          <ul>
+            <li
+              v-for="client in displayClients"
+            >
+              {{ client.attributes.name }}
+            </li>
+          </ul>
+        </dd>
       </dl>
     </div>
     <div ref="scrollParent" class="messages-container">
