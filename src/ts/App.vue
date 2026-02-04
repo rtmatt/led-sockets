@@ -35,6 +35,7 @@ let isHardwareConnected: Ref<boolean> = ref(false);
 const uiMessages: Ref<UiMessageAttributes[]> = ref([]);
 const messageContainer = useTemplateRef('scrollParent');
 const client: Ref<UiClient | null> = ref(null);
+let changingName: Ref<boolean> = ref(false);
 
 let abortController: AbortController | undefined;
 let ws: WebSocket | null = null;
@@ -247,6 +248,44 @@ function openConnection() {
           }
         }
         break;
+      case 'client_name_changed':
+        if (isServerStatus(payload)) {
+          updateState(payload.relationships.hardware_state.data.attributes);
+          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+
+          const ui_client_payload = payload.relationships && payload.relationships.ui_client;
+          if (ui_client_payload) {
+            const {
+              id,
+            } = ui_client_payload.data;
+            if (!!client.value && id === client.value.id) {
+              changingName.value = false;
+              client.value = ui_client_payload.data;
+            }
+          }
+
+          const change_detail_payload = payload.relationships && payload.relationships.change_detail;
+          if (change_detail_payload) {
+            const {
+              attributes,
+            } = change_detail_payload.data;
+            const {
+              source_id,
+              old_value,
+              new_value,
+            } = attributes;
+            if (client.value && client.value.id == source_id) {
+              addMessage({
+                message: `You are now "${new_value}."`,
+              });
+            } else {
+              addMessage({
+                message: `${old_value} is now "${new_value}."`,
+              });
+            }
+          }
+        }
+        break;
       default:
         console.warn('Unprocessed message received: ' + event_type);
         break;
@@ -301,6 +340,15 @@ function reconnect() {
   connect();
 }
 
+function changeName() {
+  log('CHANGE NAME');
+  if (!changingName.value && connected.value && ws) {
+    changingName.value = true;
+    const payload = ['change_name', {}];
+    ws.send(JSON.stringify(payload));
+  }
+}
+
 function addMessage(message: UiMessageAttributes) {
   uiMessages.value.push(message);
   nextTick(() => {
@@ -342,6 +390,9 @@ const displayMessages = computed(() => {
 });
 const checkboxChecked = computed(() => {
   return status.value;
+});
+const changeNameDisabled = computed(() => {
+  return !connected.value || changingName.value;
 });
 </script>
 <style>
@@ -394,7 +445,10 @@ ul {
         <dd>{{ hardwareStatus }}</dd>
         <dt>Client:</dt>
         <dd>
-          <span v-if="client">You're connected as {{ client.attributes.name }} <button :disabled="!connected">Change Name</button></span>
+          <span v-if="client">You're connected as {{ client.attributes.name }} <button
+            :disabled="changeNameDisabled"
+            @click="changeName"
+          >Change Name</button></span>
           <span v-else>You're not connected</span>
         </dd>
       </dl>

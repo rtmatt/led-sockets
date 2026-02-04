@@ -7,6 +7,7 @@ from websockets.asyncio.server import ServerConnection
 from websockets.client import ClientConnection
 
 from ledsockets.dto.AbstractDto import DTOInvalidAttributesException, DTOInvalidPayloadException
+from ledsockets.dto.ChangeDetail import ChangeDetail
 from ledsockets.dto.HardwareClient import HardwareClient
 from ledsockets.dto.HardwareState import HardwareState
 from ledsockets.dto.PartialHardwareState import PartialHardwareState
@@ -115,6 +116,35 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
             }
         ]))
 
+    async def _on_change_name(self, message: Message, client: UiClient):
+        original_name = client.name
+
+        new_name = original_name
+        while original_name == new_name:
+            new_name = self._name_broker.get_name()
+        self._name_broker.release_name(original_name)
+        client.name = new_name
+
+        payload: ServerStatus = self._get_status()
+        payload.ui_client = client
+
+        payload.change_detail = ChangeDetail.from_attributes({
+            "description": f'{original_name} is now "{new_name}"',
+            "source_name": original_name,
+            "action_description": f'is now "{new_name}"',
+            "source_type": client.type,
+            "source_id": client.id,
+            "old_value": original_name,
+            "new_value": new_name,
+        })
+
+        await self._broadcast_to_clients(json.dumps([
+            'client_name_changed',
+            {
+                "data": payload.toDict()
+            }
+        ]))
+
     async def _handle_client_message(self, raw_message: str, client: UiClient):
         self._log(f'Client message: {raw_message}', 'debug')
 
@@ -128,6 +158,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                 await self._on_client_patch_hardware(message, client)
             case 'talkback_message':
                 await self._on_talkback_message(message, 'Client')
+            case 'change_name':
+                await self._on_change_name(message, client)
             case _:
                 raise ClientMessageException(f"Unrecognized message type: \"{message.type}\"")
 
