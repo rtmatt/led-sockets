@@ -225,8 +225,8 @@ class ServerConnectionManager(Logs, AbstractServerConnectionManager):
                     if (connection):
                         # idempotent: closing it again is fine
                         connection.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    self._log_exception('Error dealing with dead client')
                 del self._client_connections[client_id]
 
     async def _broadcast_to_clients(self, message, send_to_ids=None, exclude_ids=None):
