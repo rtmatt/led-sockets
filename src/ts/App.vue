@@ -241,8 +241,9 @@ function openConnection() {
         }
         break;
       case 'client_disconnect':
-        if (payload.relationships && payload.relationships.ui_client) {
-          if (isUiClient(payload.relationships.ui_client.data)) {
+        if (isServerStatus(payload)) {
+          updateServerStatus(payload);
+          if (payload.relationships && payload.relationships.ui_client) {
             const { name } = payload.relationships.ui_client.data.attributes;
             addMessage({
               message: `${name} left`,
