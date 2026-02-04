@@ -195,7 +195,7 @@ function openConnection() {
               message = 'You reconnected.';
             }
             if (!client.value || name !== client.value.attributes.name) {
-              message += ` Your name is "${name}."`;
+              message += ` Your name is ${name}.`;
             }
             client.value = payload.relationships.ui_client.data;
             addMessage({
@@ -282,11 +282,11 @@ function openConnection() {
             } = attributes;
             if (client.value && client.value.id == source_id) {
               addMessage({
-                message: `You are now "${new_value}."`,
+                message: `You are now ${new_value}.`,
               });
             } else {
               addMessage({
-                message: `${old_value} is now "${new_value}."`,
+                message: `${old_value} is now ${new_value}.`,
               });
             }
           }
