@@ -10,9 +10,9 @@ import {
   isHardwareState,
   isServerStatus,
   isTalkbackMessage,
-  isUiClient,
   type PatchHardwareStateMessage,
   type ServerError,
+  type ServerStatus,
   type SocketMessage,
   type UiClient,
   type UiMessageAttributes,
@@ -97,6 +97,11 @@ function onChangeDetail(data: ChangeDetail) {
   });
 }
 
+function updateServerStatus(payload: ServerStatus) {
+  updateState(payload.relationships.hardware_state.data.attributes);
+  isHardwareConnected.value = payload.attributes.hardware_is_connected;
+}
+
 function openConnection() {
   log('OPENING CONNECTION');
   socketStatus.value = has_connected.value ? 'Reconnecting' : 'Connecting';
@@ -176,8 +181,7 @@ function openConnection() {
     switch (event_type) {
       case'client_init':
         if (isServerStatus(payload)) {
-          updateState(payload.relationships.hardware_state.data.attributes);
-          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          updateServerStatus(payload);
           if (payload.relationships.ui_client) {
 
             localStorage.setItem('ledsockets.connection', JSON.stringify(payload.relationships.ui_client.data));
@@ -198,8 +202,7 @@ function openConnection() {
         break;
       case 'hardware_disconnected':
         if (isServerStatus(payload)) {
-          updateState(payload.relationships.hardware_state.data.attributes);
-          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          updateServerStatus(payload);
           addMessage({
             message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
           });
@@ -207,8 +210,7 @@ function openConnection() {
         break;
       case 'hardware_connected':
         if (isServerStatus(payload)) {
-          updateState(payload.relationships.hardware_state.data.attributes);
-          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          updateServerStatus(payload);
           addMessage({
             message: isHardwareConnected.value ? 'Hardware connected.' : 'Hardware disconnected.',
           });
@@ -224,7 +226,7 @@ function openConnection() {
         break;
       case 'client_joined':
         if (isServerStatus(payload)) {
-          log(`Client join server status received and unprocessed`);
+          updateServerStatus(payload);
           if (payload.relationships && payload.relationships.ui_client) {
             const { name } = payload.relationships.ui_client.data.attributes;
             addMessage({
@@ -239,8 +241,9 @@ function openConnection() {
         }
         break;
       case 'client_disconnect':
-        if (payload.relationships && payload.relationships.ui_client) {
-          if (isUiClient(payload.relationships.ui_client.data)) {
+        if (isServerStatus(payload)) {
+          updateServerStatus(payload);
+          if (payload.relationships && payload.relationships.ui_client) {
             const { name } = payload.relationships.ui_client.data.attributes;
             addMessage({
               message: `${name} left`,
@@ -250,8 +253,7 @@ function openConnection() {
         break;
       case 'client_name_changed':
         if (isServerStatus(payload)) {
-          updateState(payload.relationships.hardware_state.data.attributes);
-          isHardwareConnected.value = payload.attributes.hardware_is_connected;
+          updateServerStatus(payload);
 
           const ui_client_payload = payload.relationships && payload.relationships.ui_client;
           if (ui_client_payload) {

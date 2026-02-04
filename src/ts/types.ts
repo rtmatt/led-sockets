@@ -101,7 +101,7 @@ export function isUiClient(obj: Record<string, any>): obj is UiClient {
   throw TypeError('"ui_client" invalid "attributes"');
 }
 
-type ServerStatus = SocketMessage & {
+export type ServerStatus = SocketMessage & {
   type: 'server_status',
   attributes: {
     hardware_is_connected: boolean
