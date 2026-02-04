@@ -34,6 +34,7 @@ let status: Ref<boolean> = ref(false);
 let isHardwareConnected: Ref<boolean> = ref(false);
 const uiMessages: Ref<UiMessageAttributes[]> = ref([]);
 const messageContainer = useTemplateRef('scrollParent');
+const connectedClients: Ref<UiClient[]> = ref([]);
 const client: Ref<UiClient | null> = ref(null);
 let changingName: Ref<boolean> = ref(false);
 
@@ -100,6 +101,9 @@ function onChangeDetail(data: ChangeDetail) {
 function updateServerStatus(payload: ServerStatus) {
   updateState(payload.relationships.hardware_state.data.attributes);
   isHardwareConnected.value = payload.attributes.hardware_is_connected;
+  if (payload.relationships.ui_clients) {
+    connectedClients.value = payload.relationships.ui_clients.data;
+  }
 }
 
 function openConnection() {
@@ -396,6 +400,11 @@ const checkboxChecked = computed(() => {
 const changeNameDisabled = computed(() => {
   return !connected.value || changingName.value;
 });
+const displayClients = computed(() => {
+  return connectedClients.value.filter((i: UiClient) => {
+    return !client.value || client.value.id != i.id;
+  });
+});
 </script>
 <style>
 .messages-container {
@@ -445,13 +454,24 @@ ul {
         </dd>
         <dt>Hardware Status:</dt>
         <dd>{{ hardwareStatus }}</dd>
-        <dt>Client:</dt>
+        <dt>Connected:</dt>
         <dd>
-          <span v-if="client">You're connected as {{ client.attributes.name }} <button
+          <span v-if="client">
+            <span>{{ client.attributes.name }} (You)</span>
+            <span>&nbsp;</span>
+            <button
             :disabled="changeNameDisabled"
             @click="changeName"
-          >Change Name</button></span>
+            >Change Name</button>
+          </span>
           <span v-else>You're not connected</span>
+          <ul>
+            <li
+              v-for="client in displayClients"
+            >
+              {{ client.attributes.name }}
+            </li>
+          </ul>
         </dd>
       </dl>
     </div>
