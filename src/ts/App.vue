@@ -109,7 +109,6 @@ function openConnection() {
     connecting.value = false;
     connected.value = true;
     socketStatus.value = 'Connected';
-    // @todo: pass existing data (local storage or current session client) to backend for preferred info
     const payload: InitClientMessage = [
       'init_client',
       {
