@@ -17,6 +17,7 @@
 - [ ] ::_handle_message_exception - introduce talkback between server/client on message errors
 
 ## UI Client
+- [ ] Upon socket disconnect, hardware status still shows as connected
 
 ## Misc Python
 - [ ] configure base/root logger
