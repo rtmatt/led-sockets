@@ -186,7 +186,7 @@ function openConnection() {
               message = 'You reconnected.';
             }
             if (!client.value || name !== client.value.attributes.name) {
-              message += ` Your name is ${name}.`;
+              message += ` Your name is "${name}."`;
             }
             client.value = payload.relationships.ui_client.data;
             addMessage({
