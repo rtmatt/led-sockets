@@ -169,6 +169,8 @@ export type ChangeDetail = SocketMessage & {
     action_description: string
     source_type: string
     source_id: string
+    old_value: any
+    new_value: any
   }
 }
 
@@ -197,6 +199,16 @@ export function isChangeDetail(message: unknown): message is ChangeDetail {
       throw TypeError(`Invalid key ${key}`);
     }
   });
+
+  [
+    'old_value',
+    'new_value',
+  ].forEach((key) => {
+    if (!(key in attributes)) {
+      throw TypeError(`Missing key ${key}`);
+    }
+  });
+
 
   return true;
 }
