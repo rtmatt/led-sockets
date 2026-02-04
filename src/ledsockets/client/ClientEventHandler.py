@@ -148,7 +148,6 @@ class ClientEventHandler(Logs):
 
         original_value = self._state.on
 
-
         if dto.on:
             self._state.on = True
             self._state.status_description = "The light and buzzer are on.  If I'm around it's annoying me."
